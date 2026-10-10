@@ -5,53 +5,21 @@ import { PageHead } from "@/components/admin/page-head";
 import { requirePerm } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { sommeParDevise } from "@/lib/finance-calc";
-import { CATEGORIES_DEPENSE, DEVISES, formatMontant, MOYENS, type DeviseKey } from "@/lib/money";
+import { lignesFinance, parseFiltresFinance, TYPES } from "@/lib/finance-lignes";
+import { CATEGORIES_DEPENSE, DEVISES, formatMontant, type DeviseKey } from "@/lib/money";
 
 const DEV = Object.keys(DEVISES) as DeviseKey[];
-const TYPES = { don: "Don", depense: "Dépense", paiement: "Paiement membre", fonds: "Fonds mensuel" } as const;
-type TypeKey = keyof typeof TYPES;
 const field = "min-w-0 rounded-xl border-2 border-navy/10 bg-white px-3 py-2.5 outline-none focus:border-navy";
 const LIMITE = 500;
 
-type Ligne = {
-  key: string; type: TypeKey; id: number; date: Date; libelle: string; detail?: string; sens: 1 | -1;
-  montant: { toString(): string }; devise: DeviseKey; auteur: string; annuleLe: Date | null; motif: string | null; preuveId?: number | null;
-};
-
 export default async function HistoriquePage(props: PageProps<"/gestion/finances/historique">) {
   const user = await requirePerm("FINANCES");
-  const sp = await props.searchParams;
-  const p = (k: string) => (typeof sp[k] === "string" && sp[k] ? (sp[k] as string) : undefined);
-  const du = p("du") ? new Date(`${p("du")}T00:00:00Z`) : new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1));
-  // Fin de journée : les écritures du jour sont datées à midi (UTC)
-  const au = new Date(`${p("au") ?? new Date().toISOString().slice(0, 10)}T23:59:59Z`);
-  const type = p("type") as TypeKey | undefined;
-  const devise = p("devise") as DeviseKey | undefined;
-  const categorie = p("categorie") as keyof typeof CATEGORIES_DEPENSE | undefined;
-  const userId = p("userId");
-  const membre = p("membre")?.slice(0, 60);
-  const statut = p("statut");
-  const date = { gte: du, lte: au };
-  const dev = devise && devise in DEVISES ? { devise } : {};
-  const nomMembre = membre ? { OR: [{ nom: { contains: membre, mode: "insensitive" as const } }, { prenom: { contains: membre, mode: "insensitive" as const } }] } : undefined;
-
-  const [dons, depenses, paiements, fonds, users] = await Promise.all([
-    !type || type === "don" ? db.don.findMany({ where: { date, ...dev, ...(userId && { saisiParId: userId }), ...(nomMembre && { membre: nomMembre }), ...(categorie && { id: -1 }) }, include: { membre: true, saisiPar: { select: { name: true } } } }) : [],
-    (!type || type === "depense") && !membre ? db.depense.findMany({ where: { date, ...dev, ...(userId && { saisiParId: userId }), ...(categorie && { categorie }) }, include: { saisiPar: { select: { name: true } } } }) : [],
-    (!type || type === "paiement") && !categorie ? db.paiement.findMany({ where: { date, ...dev, ...(userId && { valideParId: userId }), ...(nomMembre && { remunere: { membre: nomMembre } }) }, include: { remunere: { include: { membre: true } }, validePar: { select: { name: true } } } }) : [],
-    (!type || type === "fonds") && !membre && !categorie ? db.fondsMensuel.findMany({ where: { mois: date, ...dev, ...(userId && { declareParId: userId }) }, include: { declarePar: { select: { name: true } } } }) : [],
+  const filtres = parseFiltresFinance(await props.searchParams);
+  const { du, au, type, devise, categorie, userId, membre, statut } = filtres;
+  const [lignes, users] = await Promise.all([
+    lignesFinance(filtres),
     db.user.findMany({ select: { id: true, name: true }, orderBy: { name: "asc" } }),
   ]);
-
-  let lignes: Ligne[] = [
-    ...dons.map((d) => ({ key: `d${d.id}`, type: "don" as const, id: d.id, date: d.date, libelle: `${d.numeroRecu} · ${d.membre ? `${d.membre.prenom} ${d.membre.nom}` : d.donateur ?? "Anonyme"}`, detail: [MOYENS[d.moyen], d.motif].filter(Boolean).join(" · "), sens: 1 as const, montant: d.montant, devise: d.devise, auteur: d.saisiPar.name, annuleLe: d.annuleLe, motif: d.motifAnnulation, preuveId: d.preuveId })),
-    ...depenses.map((d) => ({ key: `x${d.id}`, type: "depense" as const, id: d.id, date: d.date, libelle: `${CATEGORIES_DEPENSE[d.categorie]} · ${d.beneficiaire}`, detail: d.description, sens: -1 as const, montant: d.montant, devise: d.devise, auteur: d.saisiPar.name, annuleLe: d.annuleLe, motif: d.motifAnnulation, preuveId: d.justificatifId })),
-    ...paiements.map((x) => ({ key: `p${x.id}`, type: "paiement" as const, id: x.id, date: x.date, libelle: `${x.numeroBordereau} · ${x.remunere.membre.prenom} ${x.remunere.membre.nom}`, detail: `Période ${x.periode} · ${MOYENS[x.moyen]}`, sens: -1 as const, montant: x.montant, devise: x.devise, auteur: x.validePar.name, annuleLe: x.annuleLe, motif: x.motifAnnulation, preuveId: x.preuveId })),
-    ...fonds.map((f) => ({ key: `f${f.id}`, type: "fonds" as const, id: f.id, date: f.mois, libelle: `Fonds de ${f.mois.toLocaleDateString("fr-FR", { month: "long", year: "numeric", timeZone: "UTC" })}`, detail: f.note ?? undefined, sens: 1 as const, montant: f.montant, devise: f.devise, auteur: f.declarePar.name, annuleLe: null, motif: null })),
-  ];
-  if (statut === "annulees") lignes = lignes.filter((l) => l.annuleLe);
-  if (statut === "valides") lignes = lignes.filter((l) => !l.annuleLe);
-  lignes.sort((a, b) => b.date.getTime() - a.date.getTime());
   const entrees = sommeParDevise(lignes.filter((l) => l.sens === 1));
   const sorties = sommeParDevise(lignes.filter((l) => l.sens === -1));
   const affichees = lignes.slice(0, LIMITE);
