@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import sharp from "sharp";
+import { ARCHIVE_MAX, cleanName, detectType } from "./archive-file";
 
 // Dossier hors de /public : les photos des membres ne sont servies qu'après connexion (volume persistant Dokploy)
 export const UPLOAD_DIR = path.resolve(/*turbopackIgnore: true*/ process.env.UPLOAD_DIR ?? "uploads");
@@ -53,6 +54,30 @@ export async function readUpload(sub: "public" | "membres", parts: string[]) {
   if (!full.startsWith(base + path.sep) || !full.endsWith(".webp")) return null;
   try {
     return await readFile(full);
+  } catch {
+    return null;
+  }
+}
+
+/** Enregistre un fichier d'archive (PDF ou photo) après contrôle du vrai type ; renvoie les infos à stocker en base. */
+export async function saveArchiveFile(file: File) {
+  if (file.size === 0) throw new Error("Fichier vide.");
+  if (file.size > ARCHIVE_MAX) throw new Error(`« ${file.name} » dépasse 10 Mo.`);
+  const buf = Buffer.from(await file.arrayBuffer());
+  const type = detectType(buf);
+  if (!type) throw new Error(`« ${file.name} » n'est ni un PDF ni une image JPG, PNG ou WEBP.`);
+  const dir = path.join(UPLOAD_DIR, "archives");
+  await mkdir(dir, { recursive: true });
+  const fichier = `${randomUUID()}.${type.ext}`; // nom aléatoire sur le disque, nom d'origine nettoyé en base
+  await writeFile(path.join(dir, fichier), buf);
+  return { fichier, mime: type.mime, taille: file.size, nomOriginal: cleanName(file.name, type.ext) };
+}
+
+/** Lit un fichier d'archive (nom généré par saveArchiveFile, sans sortie possible du dossier). */
+export async function readArchiveFile(fichier: string) {
+  if (!/^[0-9a-f-]{36}\.(pdf|jpg|png|webp)$/.test(fichier)) return null;
+  try {
+    return await readFile(path.join(UPLOAD_DIR, "archives", fichier));
   } catch {
     return null;
   }

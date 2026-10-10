@@ -3,13 +3,13 @@ import { notFound } from "next/navigation";
 import { AdminForm } from "@/components/admin/admin-form";
 import { ConfirmButton } from "@/components/admin/confirm-button";
 import { Check, ImageField, Text } from "@/components/admin/fields";
-import { can, EDITORS, requireUser } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { deleteDirigeant, saveDirigeant } from "../../content-actions";
 
 export default async function BoardEdit(props: PageProps<"/gestion/administration/[id]">) {
-  const user = await requireUser(EDITORS);
   const { id } = await props.params;
+  const user = await requirePerm("ADMINISTRATION", id === "nouveau" ? "creer" : "modifier");
   const p = id === "nouveau" ? null : await db.dirigeant.findUnique({ where: { id: Number(id) || 0 } });
   if (id !== "nouveau" && !p) notFound();
 
@@ -31,7 +31,7 @@ export default async function BoardEdit(props: PageProps<"/gestion/administratio
           <ImageField label="Photo (de préférence en portrait, visage bien visible)" current={p?.photo} required />
           <Check name="publie" label="Afficher sur le site" defaultChecked={p?.publie ?? true} />
         </AdminForm>
-        {p && can.delete(user.role) && (
+        {p && user.perms.ADMINISTRATION.supprimer && (
           <form action={deleteDirigeant.bind(null, p.id)} className="mt-8 border-t border-navy/5 pt-4">
             <ConfirmButton message={`Retirer ${p.prenom} ${p.nom} de l'administration ?`} className="text-sm font-semibold text-rouge-600 hover:underline">Supprimer</ConfirmButton>
           </form>

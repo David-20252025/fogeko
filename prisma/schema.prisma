@@ -7,11 +7,76 @@ datasource db {
   provider = "postgresql"
 }
 
-enum Role {
-  SUPERADMIN // toutes les permissions + déclaration des fonds mensuels
-  ADMIN
-  SECRETAIRE
-  LECTEUR
+// Les 9 modules de l'espace de gestion (ordre du menu)
+enum Module {
+  MEMBRES
+  ACTUALITES
+  GALERIE
+  ACTIONS
+  FINANCES
+  ARCHIVES
+  ADMINISTRATION
+  TEXTES
+  MESSAGES
+}
+
+// Rôle de compte, modifiable depuis Administration (seul le rôle super admin a des pouvoirs réservés)
+model Role {
+  id          Int              @id @default(autoincrement())
+  nom         String           @unique
+  superAdmin  Boolean          @default(false)
+  permissions RolePermission[]
+  users       User[]
+}
+
+model RolePermission {
+  role      Role    @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  roleId    Int
+  module    Module
+  voir      Boolean @default(false)
+  creer     Boolean @default(false)
+  modifier  Boolean @default(false)
+  supprimer Boolean @default(false)
+  exporter  Boolean @default(false)
+
+  @@id([roleId, module])
+}
+
+// Permission personnalisée d'un compte (null = reprend celle du rôle)
+model UserPermission {
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  module    Module
+  voir      Boolean?
+  creer     Boolean?
+  modifier  Boolean?
+  supprimer Boolean?
+  exporter  Boolean?
+
+  @@id([userId, module])
+}
+
+// Journal des actions sensibles : qui, quoi, quand, d'où
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId    String?
+  action    String
+  entite    String?
+  entiteId  String?
+  details   Json?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([userId])
+}
+
+// Paramètres internes (non affichés sur le site public)
+model Parametres {
+  id               Int      @id @default(1)
+  adresseFondation String? // pied de page des rapports PDF
+  tauxUsdCdf       Decimal? @db.Decimal(14, 4) // 1 USD = x CDF, pour les totaux convertis uniquement
 }
 
 enum Sexe {
@@ -38,16 +103,28 @@ enum TypeMedia {
 }
 
 model User {
-  id           String         @id @default(cuid())
-  email        String         @unique
-  name         String
-  passwordHash String
-  role         Role           @default(LECTEUR)
-  failedLogins Int            @default(0)
-  lockedUntil  DateTime?
-  createdAt    DateTime       @default(now())
-  dons         Don[]          @relation("DonsSaisis")
-  fonds        FondsMensuel[] @relation("FondsDeclares")
+  id                 String           @id @default(cuid())
+  email              String           @unique
+  name               String
+  passwordHash       String
+  role               Role             @relation(fields: [roleId], references: [id])
+  roleId             Int
+  photo              String? // obligatoire à la création ; demandé à la connexion pour les anciens comptes
+  permissions        UserPermission[]
+  audits             AuditLog[]
+  failedLogins       Int              @default(0)
+  lockedUntil        DateTime?
+  createdAt          DateTime         @default(now())
+  dons               Don[]            @relation("DonsSaisis")
+  donsAnnules        Don[]            @relation("DonsAnnules")
+  depenses           Depense[]        @relation("DepensesSaisies")
+  depensesAnnulees   Depense[]        @relation("DepensesAnnulees")
+  paiements          Paiement[]       @relation("PaiementsValides")
+  paiementsAnnules   Paiement[]       @relation("PaiementsAnnules")
+  remunerations      MembreRemunere[] @relation("RemunerationsDesignees")
+  archives           Archive[]        @relation("ArchivesImportees")
+  archivesSupprimees Archive[]        @relation("ArchivesSupprimees")
+  fonds              FondsMensuel[]   @relation("FondsDeclares")
 }
 
 model Commune {
@@ -80,6 +157,9 @@ model Member {
   consentementDate DateTime     @default(now())
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
+
+  dons         Don[]
+  remuneration MembreRemunere?
 
   @@index([nom, prenom])
   @@index([categorie])
@@ -195,27 +275,183 @@ enum Devise {
 
 enum MoyenPaiement {
   ESPECES
-  MOBILE_MONEY
-  VIREMENT
+  MPESA
+  AIRTEL_MONEY
+  ORANGE_MONEY
+  BANQUE
+}
+
+enum TypeDonateur {
+  MEMBRE
+  PASTEUR
+  EXTERNE
+  ANONYME
+}
+
+enum CategorieDepense {
+  ACTION_SOCIALE
+  EVENEMENT
+  COMMUNICATION
+  TRANSPORT
+  FONCTIONNEMENT
+  REMUNERATIONS
   AUTRE
 }
 
-// Don reçu par la fondation (saisi par un administrateur)
+enum Periodicite {
+  MENSUEL
+  TRIMESTRIEL
+  PONCTUEL
+}
+
+enum PeriodeBudget {
+  MENSUEL
+  ANNUEL
+}
+
+enum CategorieArchive {
+  ADMINISTRATIF
+  FINANCIER
+  JURIDIQUE
+  EVENEMENT
+  AUTRE
+}
+
+// Don reçu (entrée d'argent) ; jamais supprimé : annulé avec motif
 model Don {
-  id         Int           @id @default(autoincrement())
-  date       DateTime
-  montant    Decimal       @db.Decimal(14, 2)
-  devise     Devise
-  donateur   String? // vide = anonyme
-  telephone  String?
-  moyen      MoyenPaiement
-  reference  String? // n° de transaction mobile money, reçu…
-  note       String?
-  saisiPar   User          @relation("DonsSaisis", fields: [saisiParId], references: [id])
-  saisiParId String
-  createdAt  DateTime      @default(now())
+  id              Int           @id @default(autoincrement())
+  numeroRecu      String        @unique // REC-2026-0001
+  date            DateTime
+  montant         Decimal       @db.Decimal(14, 2)
+  devise          Devise
+  typeDonateur    TypeDonateur
+  membre          Member?       @relation(fields: [membreId], references: [id])
+  membreId        String?
+  donateur        String? // nom pour pasteur / externe
+  telephone       String?
+  moyen           MoyenPaiement
+  reference       String? // n° de transaction mobile money, bordereau bancaire…
+  motif           String?
+  note            String?
+  preuve          Archive?      @relation("PreuvesDons", fields: [preuveId], references: [id])
+  preuveId        Int?
+  saisiPar        User          @relation("DonsSaisis", fields: [saisiParId], references: [id])
+  saisiParId      String
+  createdAt       DateTime      @default(now())
+  annuleLe        DateTime?
+  annulePar       User?         @relation("DonsAnnules", fields: [annuleParId], references: [id])
+  annuleParId     String?
+  motifAnnulation String?
 
   @@index([date])
+}
+
+// Dépense (sortie d'argent) ; jamais supprimée : annulée avec motif
+model Depense {
+  id              Int              @id @default(autoincrement())
+  date            DateTime
+  montant         Decimal          @db.Decimal(14, 2)
+  devise          Devise
+  categorie       CategorieDepense
+  beneficiaire    String
+  description     String
+  justificatif    Archive?         @relation("JustificatifsDepenses", fields: [justificatifId], references: [id])
+  justificatifId  Int?
+  saisiPar        User             @relation("DepensesSaisies", fields: [saisiParId], references: [id])
+  saisiParId      String
+  createdAt       DateTime         @default(now())
+  annuleLe        DateTime?
+  annulePar       User?            @relation("DepensesAnnulees", fields: [annuleParId], references: [id])
+  annuleParId     String?
+  motifAnnulation String?
+
+  @@index([date])
+}
+
+// Budget par catégorie de dépense (alerte en cas de dépassement)
+model Budget {
+  id        Int              @id @default(autoincrement())
+  categorie CategorieDepense
+  devise    Devise
+  periode   PeriodeBudget
+  montant   Decimal          @db.Decimal(14, 2)
+
+  @@unique([categorie, devise, periode])
+}
+
+// Membre rémunéré : désigné uniquement par un super admin
+model MembreRemunere {
+  id           Int         @id @default(autoincrement())
+  membre       Member      @relation(fields: [membreId], references: [id])
+  membreId     String      @unique
+  fonction     String
+  montant      Decimal     @db.Decimal(14, 2)
+  devise       Devise
+  periodicite  Periodicite
+  debut        DateTime    @db.Date // 1er mois concerné
+  actif        Boolean     @default(true)
+  designePar   User        @relation("RemunerationsDesignees", fields: [designeParId], references: [id])
+  designeParId String
+  createdAt    DateTime    @default(now())
+  paiements    Paiement[]
+}
+
+// Paiement d'un membre rémunéré ; génère un bordereau numéroté ; annulé avec motif, jamais supprimé
+model Paiement {
+  id              Int            @id @default(autoincrement())
+  numeroBordereau String         @unique // BOR-2026-0001
+  remunere        MembreRemunere @relation(fields: [remunereId], references: [id])
+  remunereId      Int
+  date            DateTime
+  periode         String // « 2026-10 »
+  montant         Decimal        @db.Decimal(14, 2)
+  devise          Devise
+  moyen           MoyenPaiement
+  reference       String?
+  preuve          Archive?       @relation("PreuvesPaiements", fields: [preuveId], references: [id])
+  preuveId        Int?
+  validePar       User           @relation("PaiementsValides", fields: [valideParId], references: [id])
+  valideParId     String
+  createdAt       DateTime       @default(now())
+  annuleLe        DateTime?
+  annulePar       User?          @relation("PaiementsAnnules", fields: [annuleParId], references: [id])
+  annuleParId     String?
+  motifAnnulation String?
+
+  @@index([periode])
+}
+
+// Numérotation sans trou ni doublon (REC-2026, BOR-2026…)
+model Compteur {
+  cle    String @id
+  valeur Int    @default(0)
+}
+
+// Document archivé (PDF ou photo) ; stocké hors du dossier public, servi après contrôle des droits
+model Archive {
+  id               Int              @id @default(autoincrement())
+  titre            String
+  categorie        CategorieArchive
+  dateDocument     DateTime?        @db.Date
+  description      String?
+  motsCles         String[]
+  fichier          String // chemin relatif dans UPLOAD_DIR/archives
+  nomOriginal      String
+  mime             String
+  taille           Int
+  importePar       User             @relation("ArchivesImportees", fields: [importeParId], references: [id])
+  importeParId     String
+  createdAt        DateTime         @default(now())
+  supprimeeLe      DateTime?
+  supprimeePar     User?            @relation("ArchivesSupprimees", fields: [supprimeeParId], references: [id])
+  supprimeeParId   String?
+  motifSuppression String?
+  dons             Don[]            @relation("PreuvesDons")
+  depenses         Depense[]        @relation("JustificatifsDepenses")
+  paiements        Paiement[]       @relation("PreuvesPaiements")
+
+  @@index([categorie])
+  @@index([createdAt])
 }
 
 // Fonds déclaré chaque mois par un super administrateur (un par mois et par devise)

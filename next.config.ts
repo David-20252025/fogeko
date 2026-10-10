@@ -21,7 +21,7 @@ const nextConfig: NextConfig = {
   // Les photos des membres et les sources ne doivent jamais être copiées dans le build
   outputFileTracingExcludes: { "*": ["uploads/**", "src/**", ".pgdata/**", "apercus/**"] },
   // Photos envoyées depuis l'admin (12 Mo max, vérifié côté serveur) ; l'adhésion publique reste limitée à 900 Ko dans son action
-  experimental: { serverActions: { bodySizeLimit: "13mb" } },
+  experimental: { serverActions: { bodySizeLimit: "13mb" }, authInterrupts: true }, // authInterrupts : forbidden() → page 403
   // Images optimisées gardées 30 jours (les photos envoyées ont des noms uniques : jamais de version périmée)
   images: { qualities: [60, 75], minimumCacheTTL: 2_592_000 },
   async headers() {

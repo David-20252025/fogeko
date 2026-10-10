@@ -11,10 +11,11 @@ async function main() {
   const pb = passwordProblem(password);
   if (pb) throw new Error(pb);
   const passwordHash = await hashPassword(password);
+  const role = await db.role.upsert({ where: { nom: "Super admin" }, update: { superAdmin: true }, create: { nom: "Super admin", superAdmin: true } });
   const u = await db.user.upsert({
     where: { email },
-    update: { role: "SUPERADMIN", passwordHash, failedLogins: 0, lockedUntil: null },
-    create: { email, name: "Super administrateur", role: "SUPERADMIN", passwordHash },
+    update: { roleId: role.id, passwordHash, failedLogins: 0, lockedUntil: null },
+    create: { email, name: "Super administrateur", roleId: role.id, passwordHash },
   });
   console.log(`Super administrateur prêt : ${u.email}`);
 }

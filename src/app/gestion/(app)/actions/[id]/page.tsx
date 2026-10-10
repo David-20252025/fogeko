@@ -3,13 +3,13 @@ import { notFound } from "next/navigation";
 import { AdminForm } from "@/components/admin/admin-form";
 import { ConfirmButton } from "@/components/admin/confirm-button";
 import { Area, Check, ImageField, Text } from "@/components/admin/fields";
-import { can, EDITORS, requireUser } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { deleteAction, saveAction } from "../../content-actions";
 
 export default async function ActionEdit(props: PageProps<"/gestion/actions/[id]">) {
-  const user = await requireUser(EDITORS);
   const { id } = await props.params;
+  const user = await requirePerm("ACTIONS", id === "nouveau" ? "creer" : "modifier");
   const a = id === "nouveau" ? null : await db.action.findUnique({ where: { id: Number(id) || 0 } });
   if (id !== "nouveau" && !a) notFound();
 
@@ -28,7 +28,7 @@ export default async function ActionEdit(props: PageProps<"/gestion/actions/[id]
           <Area name="contenu" label="Description détaillée (page Actions)" defaultValue={a?.contenu} rows={8} />
           <Check name="publiee" label="Afficher sur le site" defaultChecked={a?.publiee ?? true} />
         </AdminForm>
-        {a && can.delete(user.role) && (
+        {a && user.perms.ACTIONS.supprimer && (
           <form action={deleteAction.bind(null, a.id)} className="mt-8 border-t border-navy/5 pt-4">
             <ConfirmButton message="Supprimer définitivement cette action ?" className="text-sm font-semibold text-rouge-600 hover:underline">Supprimer l&apos;action</ConfirmButton>
           </form>

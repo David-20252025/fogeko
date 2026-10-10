@@ -1,6 +1,12 @@
 export const DEVISES = { USD: "Dollar (USD)", CDF: "Franc congolais (CDF)" } as const;
 export type DeviseKey = keyof typeof DEVISES;
-export const MOYENS = { ESPECES: "Espèces", MOBILE_MONEY: "Mobile money", VIREMENT: "Virement bancaire", AUTRE: "Autre" } as const;
+export const MOYENS = { ESPECES: "Espèces", MPESA: "M-Pesa", AIRTEL_MONEY: "Airtel Money", ORANGE_MONEY: "Orange Money", BANQUE: "Banque" } as const;
+export const TYPES_DONATEUR = { MEMBRE: "Membre", PASTEUR: "Pasteur", EXTERNE: "Externe", ANONYME: "Anonyme" } as const;
+export const CATEGORIES_DEPENSE = {
+  ACTION_SOCIALE: "Action sociale", EVENEMENT: "Événement", COMMUNICATION: "Communication", TRANSPORT: "Transport",
+  FONCTIONNEMENT: "Fonctionnement", REMUNERATIONS: "Rémunérations", AUTRE: "Autre",
+} as const;
+export const PERIODICITES = { MENSUEL: "Mensuelle", TRIMESTRIEL: "Trimestrielle", PONCTUEL: "Ponctuelle" } as const;
 
 /** « 1 500,50 », « 1500.5 », « 2 000 » → "1500.50" (chaîne exacte pour Decimal) ; null si invalide, nul ou négatif. */
 export function parseMontant(raw: string): string | null {

@@ -4,12 +4,12 @@ import { AdminForm } from "@/components/admin/admin-form";
 import { ConfirmButton } from "@/components/admin/confirm-button";
 import { Check, Text } from "@/components/admin/fields";
 import { PageHead } from "@/components/admin/page-head";
-import { can, EDITORS, requireUser } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { addCategory, deleteCategory, toggleCategory } from "../content-actions";
 
 export default async function NewsAdmin() {
-  const user = await requireUser(EDITORS);
+  const user = await requirePerm("ACTUALITES");
   const [articles, categories] = await Promise.all([
     db.article.findMany({ orderBy: { publieLe: "desc" }, include: { categorie: true } }),
     db.newsCategory.findMany({ orderBy: { nom: "asc" }, include: { _count: { select: { articles: true } } } }),
@@ -17,7 +17,7 @@ export default async function NewsAdmin() {
 
   return (
     <div className="space-y-4">
-      <PageHead title="Actualités" sub={`${articles.length} article(s)`} action={{ href: "/gestion/actualites/nouveau", label: "+ Nouvel article" }} />
+      <PageHead title="Actualités" sub={`${articles.length} article(s)`} action={user.perms.ACTUALITES.creer ? { href: "/gestion/actualites/nouveau", label: "+ Nouvel article" } : undefined} />
       <div className="grid gap-4 xl:grid-cols-[1fr_22rem]">
         <ul className="h-fit divide-y divide-navy/5 overflow-hidden rounded-3xl bg-white">
           {articles.map((a) => (
@@ -44,12 +44,12 @@ export default async function NewsAdmin() {
             {categories.map((c) => (
               <li key={c.id} className="flex items-center gap-2 rounded-xl bg-mist px-3 py-2">
                 <span className="flex-1 font-medium">{c.nom} <span className="text-sm text-ink/65">({c._count.articles})</span></span>
-                <form action={toggleCategory.bind(null, c.id)}>
+                <form action={toggleCategory.bind(null, c.id)} className={user.perms.ACTUALITES.modifier ? "" : "pointer-events-none opacity-70"}>
                   <button className={`rounded-full px-3 py-1 text-xs font-semibold ${c.visible ? "bg-emerald-600 text-white" : "bg-white text-ink/70 ring-1 ring-navy/10"}`} title="Changer la visibilité">
                     {c.visible ? "Visible" : "Masquée"}
                   </button>
                 </form>
-                {can.delete(user.role) && c._count.articles === 0 && (
+                {user.perms.ACTUALITES.supprimer && c._count.articles === 0 && (
                   <form action={deleteCategory.bind(null, c.id)}>
                     <ConfirmButton message={`Supprimer la catégorie « ${c.nom} » ?`} className="px-1 text-rouge-600">✕</ConfirmButton>
                   </form>
@@ -57,12 +57,12 @@ export default async function NewsAdmin() {
               </li>
             ))}
           </ul>
-          <div className="mt-5 border-t border-navy/5 pt-5">
+          {user.perms.ACTUALITES.creer && <div className="mt-5 border-t border-navy/5 pt-5">
             <AdminForm resetOnSuccess action={addCategory} submit="Ajouter">
               <Text name="nom" label="Nouvelle catégorie" required />
               <Check name="visible" label="Visible sur le site" defaultChecked />
             </AdminForm>
-          </div>
+          </div>}
         </aside>
       </div>
     </div>

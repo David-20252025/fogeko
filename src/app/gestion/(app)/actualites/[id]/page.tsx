@@ -3,13 +3,13 @@ import { notFound } from "next/navigation";
 import { AdminForm } from "@/components/admin/admin-form";
 import { ConfirmButton } from "@/components/admin/confirm-button";
 import { admInput, admLabel, Area, Check, ImageField, Text } from "@/components/admin/fields";
-import { can, EDITORS, requireUser } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { deleteArticle, saveArticle } from "../../content-actions";
 
 export default async function ArticleEdit(props: PageProps<"/gestion/actualites/[id]">) {
-  const user = await requireUser(EDITORS);
   const { id } = await props.params;
+  const user = await requirePerm("ACTUALITES", id === "nouveau" ? "creer" : "modifier");
   const a = id === "nouveau" ? null : await db.article.findUnique({ where: { id: Number(id) || 0 } });
   if (id !== "nouveau" && !a) notFound();
   const categories = await db.newsCategory.findMany({ orderBy: { nom: "asc" } });
@@ -38,7 +38,7 @@ export default async function ArticleEdit(props: PageProps<"/gestion/actualites/
           <Area name="contenu" label="Texte de l'article" defaultValue={a?.contenu} rows={12} hint="Les retours à la ligne sont conservés." />
           <Check name="publie" label="Publié sur le site" defaultChecked={a?.publie ?? true} />
         </AdminForm>
-        {a && can.delete(user.role) && (
+        {a && user.perms.ACTUALITES.supprimer && (
           <form action={deleteArticle.bind(null, a.id)} className="mt-8 border-t border-navy/5 pt-4">
             <ConfirmButton message="Supprimer définitivement cet article ?" className="text-sm font-semibold text-rouge-600 hover:underline">Supprimer l&apos;article</ConfirmButton>
           </form>

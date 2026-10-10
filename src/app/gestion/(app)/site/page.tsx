@@ -2,7 +2,7 @@ import { AdminForm } from "@/components/admin/admin-form";
 import { ConfirmButton } from "@/components/admin/confirm-button";
 import { Area, Text } from "@/components/admin/fields";
 import { PageHead } from "@/components/admin/page-head";
-import { can, EDITORS, requireUser } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getSettings } from "@/lib/settings";
 import { deleteTimeline, saveSettings, saveTimeline } from "../content-actions";
@@ -11,14 +11,14 @@ const box = "rounded-3xl bg-white p-6";
 const h2 = "mb-4 text-xl font-bold text-navy";
 
 export default async function SiteAdmin() {
-  const user = await requireUser(EDITORS);
+  const user = await requirePerm("TEXTES");
   const [s, timeline] = await Promise.all([getSettings(), db.timelineEvent.findMany({ orderBy: { ordre: "asc" } })]);
 
   return (
     <div className="space-y-4">
       <PageHead title="Textes du site" sub="Tout ce qui s'affiche sur le site public, modifiable sans toucher au code." />
 
-      <AdminForm action={saveSettings} submit="Enregistrer les textes" className="grid gap-4">
+      <AdminForm action={saveSettings} submit="Enregistrer les textes" className="grid gap-4" readOnly={!user.perms.TEXTES.modifier}>
         <section className={box}>
           <h2 className={h2}>Accueil</h2>
           <div className="grid gap-4">
@@ -60,7 +60,7 @@ export default async function SiteAdmin() {
         <ul className="space-y-4">
           {timeline.map((e) => (
             <li key={e.id} className="rounded-2xl bg-mist p-4">
-              <AdminForm action={saveTimeline.bind(null, e.id)}>
+              <AdminForm action={saveTimeline.bind(null, e.id)} readOnly={!user.perms.TEXTES.modifier}>
                 <div className="grid gap-3 sm:grid-cols-[8rem_1fr_5rem]">
                   <Text name="annee" id={`annee-${e.id}`} label="Année / date" defaultValue={e.annee} />
                   <Text name="titre" id={`titre-${e.id}`} label="Titre" defaultValue={e.titre} required />
@@ -68,7 +68,7 @@ export default async function SiteAdmin() {
                 </div>
                 <Area name="texte" id={`texte-${e.id}`} label="Texte" defaultValue={e.texte} rows={2} />
               </AdminForm>
-              {can.delete(user.role) && (
+              {user.perms.TEXTES.supprimer && (
                 <form action={deleteTimeline.bind(null, e.id)} className="mt-2">
                   <ConfirmButton message="Supprimer cette étape ?" className="text-sm font-semibold text-rouge-600 hover:underline">Supprimer</ConfirmButton>
                 </form>
@@ -76,7 +76,7 @@ export default async function SiteAdmin() {
             </li>
           ))}
         </ul>
-        <div className="mt-6 border-t border-navy/5 pt-6">
+        {user.perms.TEXTES.creer && <div className="mt-6 border-t border-navy/5 pt-6">
           <p className="mb-3 font-semibold text-navy">Ajouter une étape</p>
           <AdminForm resetOnSuccess action={saveTimeline.bind(null, null)} submit="Ajouter">
             <div className="grid gap-3 sm:grid-cols-[8rem_1fr_5rem]">
@@ -86,7 +86,7 @@ export default async function SiteAdmin() {
             </div>
             <Area name="texte" label="Texte" rows={2} />
           </AdminForm>
-        </div>
+        </div>}
       </section>
     </div>
   );

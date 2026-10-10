@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { CardSelection } from "@/components/admin/card-selection";
 import { StatutBadge } from "@/components/admin/statut-badge";
-import { can, requireUser } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { filtersToQuery, memberWhere, parseFilters } from "@/lib/member-query";
 import { CATEGORIES, formatNumero, photoUrl, STATUTS } from "@/lib/members";
@@ -10,7 +10,7 @@ const PER_PAGE = 25;
 const field = "min-w-0 rounded-xl border-2 border-navy/10 bg-white px-3.5 py-2.5 outline-none focus:border-navy";
 
 export default async function MembersPage(props: PageProps<"/gestion/membres">) {
-  const user = await requireUser();
+  const user = await requirePerm("MEMBRES");
   const sp = await props.searchParams;
   const f = parseFilters(sp);
   const page = Math.max(1, Number(sp.page) || 1);
@@ -33,7 +33,7 @@ export default async function MembersPage(props: PageProps<"/gestion/membres">) 
           <h1 className="font-slab text-3xl font-bold text-navy md:text-4xl">Membres</h1>
           <p className="mt-1 text-ink/70">{total} membre{total > 1 ? "s" : ""}{filtered ? " correspondant aux filtres" : ""}</p>
         </div>
-        {can.export(user.role) && (
+        {user.perms.MEMBRES.exporter && (
           <div className="flex flex-wrap gap-2">
             <a href={`/gestion/membres/export?${qs}`} className="rounded-full bg-navy px-5 py-2.5 font-semibold text-white hover:bg-navy-700">Export Excel</a>
             <Link href={`/gestion/impression/cartes?${qs}`} target="_blank" className="rounded-full border-2 border-navy/15 px-5 py-2.5 font-semibold text-navy hover:border-navy">Cartes (tous les résultats)</Link>
@@ -63,7 +63,7 @@ export default async function MembersPage(props: PageProps<"/gestion/membres">) 
         </div>
       </form>
 
-      {can.export(user.role) && members.length > 0 && <CardSelection formId="selection-cartes" />}
+      {user.perms.MEMBRES.exporter && members.length > 0 && <CardSelection formId="selection-cartes" />}
       {/* Formulaire de sélection : les cases des lignes y sont rattachées via form="…" */}
       <form id="selection-cartes" action="/gestion/impression/cartes" target="_blank" />
 
@@ -86,7 +86,7 @@ export default async function MembersPage(props: PageProps<"/gestion/membres">) 
               {members.map((m) => (
                 <tr key={m.id} className="relative block hover:bg-mist/60 md:table-row">
                   <td className="flex items-center gap-3 px-5 pt-4 md:table-cell md:py-3">
-                    {can.export(user.role) && (
+                    {user.perms.MEMBRES.exporter && (
                       <input type="checkbox" name="id" value={m.id} form="selection-cartes" aria-label={`Sélectionner ${m.prenom} ${m.nom}`} className="relative z-10 mr-3 size-5 shrink-0 accent-navy md:align-middle" />
                     )}
                     <Link href={`/gestion/membres/${m.id}`} className="inline-flex items-center gap-3 align-middle after:absolute after:inset-0">

@@ -1,11 +1,11 @@
 import { ConfirmButton } from "@/components/admin/confirm-button";
 import { PageHead } from "@/components/admin/page-head";
-import { can, EDITORS, requireUser } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { deleteMessage, toggleRead } from "../content-actions";
 
 export default async function MessagesAdmin() {
-  const user = await requireUser(EDITORS);
+  const user = await requirePerm("MESSAGES");
   const messages = await db.contactMessage.findMany({ orderBy: { createdAt: "desc" }, take: 200 });
 
   return (
@@ -26,10 +26,10 @@ export default async function MessagesAdmin() {
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <form action={toggleRead.bind(null, m.id)}>
+                {user.perms.MESSAGES.modifier && <form action={toggleRead.bind(null, m.id)}>
                   <button className="rounded-full border-2 border-navy/10 px-3 py-1 text-sm font-semibold text-navy hover:border-navy">{m.lu ? "Marquer non lu" : "Marquer lu"}</button>
-                </form>
-                {can.delete(user.role) && (
+                </form>}
+                {user.perms.MESSAGES.supprimer && (
                   <form action={deleteMessage.bind(null, m.id)}>
                     <ConfirmButton message="Supprimer ce message ?" className="px-2 text-sm font-semibold text-rouge-600">Supprimer</ConfirmButton>
                   </form>

@@ -1,7 +1,8 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { createSession, destroySession, LOCK_MS, MAX_FAILS, verifyPassword } from "@/lib/auth";
+import { audit } from "@/lib/audit";
+import { createSession, destroySession, getUser, LOCK_MS, MAX_FAILS, verifyPassword } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { clientIp } from "@/lib/client-ip";
 import { rateLimit } from "@/lib/rate-limit";
@@ -24,6 +25,7 @@ export async function login(_: { error?: string }, f: FormData): Promise<{ error
   const ok = await verifyPassword(password, user?.passwordHash ?? DUMMY);
   if (!user || !ok) {
     rateLimit(ipKey, 20, 15 * 60_000);
+    await audit(user?.id ?? null, "connexion.echec", "User", user?.id, { email });
     if (user) {
       const fails = user.failedLogins + 1;
       await db.user.update({
@@ -35,10 +37,13 @@ export async function login(_: { error?: string }, f: FormData): Promise<{ error
   }
   await db.user.update({ where: { id: user.id }, data: { failedLogins: 0, lockedUntil: null } });
   await createSession(user);
+  await audit(user.id, "connexion", "User", user.id);
   redirect("/gestion");
 }
 
 export async function logout() {
+  const me = await getUser();
+  if (me) await audit(me.id, "deconnexion", "User", me.id);
   await destroySession();
   redirect("/gestion/connexion");
 }

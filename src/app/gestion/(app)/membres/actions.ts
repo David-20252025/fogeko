@@ -3,7 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Prisma } from "@/generated/prisma/client";
-import { ADMINS, assertRole, EDITORS } from "@/lib/auth";
+import { audit } from "@/lib/audit";
+import { assertPerm } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { parseMemberFields } from "@/lib/member-validate";
 import { STATUTS, type StatutKey } from "@/lib/members";
@@ -13,7 +14,7 @@ export type { FormState } from "@/components/admin/admin-form";
 import type { FormState } from "@/components/admin/admin-form";
 
 export async function updateMember(id: string, _: FormState, f: FormData): Promise<FormState> {
-  await assertRole(EDITORS);
+  await assertPerm("MEMBRES", "modifier");
   const parsed = await parseMemberFields(f);
   if ("error" in parsed) return parsed;
   const statut = String(f.get("statut"));
@@ -29,15 +30,16 @@ export async function updateMember(id: string, _: FormState, f: FormData): Promi
 }
 
 export async function setStatut(id: string, statut: StatutKey) {
-  await assertRole(EDITORS);
+  await assertPerm("MEMBRES", "modifier");
   if (!(statut in STATUTS)) throw new Error("Statut invalide");
   await db.member.update({ where: { id }, data: { statut } });
   revalidatePath(`/gestion/membres/${id}`);
 }
 
 export async function deleteMember(id: string) {
-  await assertRole(ADMINS);
+  const me = await assertPerm("MEMBRES", "supprimer");
   const m = await db.member.delete({ where: { id } });
   await removeFiles(m.photo, m.photoThumb);
+  await audit(me.id, "membre.suppression", "Member", id, { numero: m.numero, nom: `${m.prenom} ${m.nom}` });
   redirect("/gestion/membres");
 }

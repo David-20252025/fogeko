@@ -1,12 +1,12 @@
 import ExcelJS from "exceljs";
-import { can, getUser } from "@/lib/auth";
+import { getUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { memberWhere, parseFilters } from "@/lib/member-query";
 import { CATEGORIES, formatNumero, STATUTS } from "@/lib/members";
 
 export async function GET(req: Request) {
   const user = await getUser();
-  if (!user || !can.export(user.role)) return new Response("Accès refusé", { status: 403 });
+  if (!user?.perms.MEMBRES.exporter) return new Response("Accès refusé", { status: 403 });
 
   const f = parseFilters(Object.fromEntries(new URL(req.url).searchParams));
   const members = await db.member.findMany({ where: memberWhere(f), include: { commune: true }, orderBy: { numero: "asc" } });

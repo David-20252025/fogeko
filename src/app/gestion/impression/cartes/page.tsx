@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import QRCode from "qrcode";
 import { AutoPrint } from "@/components/admin/auto-print";
-import { EDITORS, requireUser } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { memberWhere, parseFilters } from "@/lib/member-query";
 import { CATEGORIES, formatNumero, photoUrl } from "@/lib/members";
@@ -16,7 +16,7 @@ const PAGE_CSS = {
 };
 
 export default async function PrintCards(props: PageProps<"/gestion/impression/cartes">) {
-  await requireUser(EDITORS);
+  await requirePerm("MEMBRES", "exporter");
   const sp = await props.searchParams;
   const format = sp.format === "cr80" ? "cr80" : "a4";
   const ids = ([] as string[]).concat(sp.id ?? []).slice(0, 500);

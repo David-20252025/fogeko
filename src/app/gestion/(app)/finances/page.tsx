@@ -1,192 +1,147 @@
 import Link from "next/link";
 import { AdminForm } from "@/components/admin/admin-form";
-import { ConfirmButton } from "@/components/admin/confirm-button";
 import { admInput, admLabel, Area, Text } from "@/components/admin/fields";
+import { FinanceTabs, MoisNav, moisCourant } from "@/components/admin/finance-tabs";
 import { PageHead } from "@/components/admin/page-head";
-import { ADMINS, can, requireUser } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { DEVISES, formatMontant, moisCle, moisDebut, moisLabel, MOYENS, type DeviseKey } from "@/lib/money";
-import { addDon, declarerFonds, deleteDon } from "./actions";
+import { bilan, convertiUsd, moisDe, paieDuMois, suiviBudgets } from "@/lib/finance-calc";
+import { CATEGORIES_DEPENSE, DEVISES, formatMontant, moisLabel, type DeviseKey } from "@/lib/money";
+import { declarerFonds } from "./actions";
 
 const DEV = Object.keys(DEVISES) as DeviseKey[];
 
-function DeviseSelect({ id }: { id: string }) {
-  return (
-    <div>
-      <label htmlFor={id} className={admLabel}>Devise</label>
-      <select id={id} name="devise" defaultValue="USD" className={admInput}>
-        {DEV.map((d) => <option key={d} value={d}>{DEVISES[d]}</option>)}
-      </select>
-    </div>
-  );
-}
-
-// Chargement hors du composant : dépend de la date du jour
-async function load(moisParam: string | undefined) {
-  const now = new Date();
-  const courant = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-  const mois = (moisParam && moisDebut(moisParam)) || courant;
-  const suivant = new Date(Date.UTC(mois.getUTCFullYear(), mois.getUTCMonth() + 1, 1));
+// Chargement hors du composant (dépend de la date du jour)
+async function load(param: unknown) {
+  const nav = moisCourant(param);
+  const { mois, suivant, courant } = nav;
   const debut12 = new Date(Date.UTC(courant.getUTCFullYear(), courant.getUTCMonth() - 11, 1));
-
-  const [dons, fondsMois, fonds12, dons12] = await Promise.all([
-    db.don.findMany({ where: { date: { gte: mois, lt: suivant } }, orderBy: { date: "desc" }, include: { saisiPar: { select: { name: true } } } }),
-    db.fondsMensuel.findMany({ where: { mois }, include: { declarePar: { select: { name: true } } } }),
+  const anneeDebut = new Date(Date.UTC(mois.getUTCFullYear(), 0, 1));
+  const periode = moisDe(mois);
+  const [dons, fonds, depenses, paiements, budgets, remuneres, params, fondsMois] = await Promise.all([
+    db.don.findMany({ where: { date: { gte: debut12 < anneeDebut ? debut12 : anneeDebut } } }),
     db.fondsMensuel.findMany({ where: { mois: { gte: debut12 } } }),
-    db.$queryRaw<{ m: Date; devise: DeviseKey; total: string }[]>`
-      SELECT date_trunc('month', "date") AS m, devise, sum(montant)::text AS total FROM "Don"
-      WHERE "date" >= ${debut12} GROUP BY 1, 2`,
+    db.depense.findMany({ where: { date: { gte: debut12 < anneeDebut ? debut12 : anneeDebut } } }),
+    db.paiement.findMany({ where: { date: { gte: debut12 } } }),
+    db.budget.findMany(),
+    db.membreRemunere.findMany({ where: { actif: true } }),
+    db.parametres.findUnique({ where: { id: 1 } }),
+    db.fondsMensuel.findMany({ where: { mois }, include: { declarePar: { select: { name: true } } } }),
   ]);
-
-  const sumDons = (d: DeviseKey) => dons.filter((x) => x.devise === d).reduce((a, x) => a + Number(x.montant), 0);
-  const resume = DEV.map((d) => {
-    const fonds = Number(fondsMois.find((f) => f.devise === d)?.montant ?? 0);
-    const recus = sumDons(d);
-    return { devise: d, fonds, recus, total: fonds + recus, nb: dons.filter((x) => x.devise === d).length };
-  });
+  const duMois = <T extends { date: Date }>(l: T[]) => l.filter((x) => x.date >= mois && x.date < suivant);
+  const fondsDuMois = fonds.filter((f) => moisDe(f.mois) === periode).map((f) => ({ ...f, annuleLe: null }));
+  const b = bilan([...duMois(dons), ...fondsDuMois], [...duMois(depenses), ...duMois(paiements)]);
+  const taux = params?.tauxUsdCdf ? Number(params.tauxUsdCdf) : null;
+  const alertes = suiviBudgets(budgets, depenses, mois).filter((x) => x.pourcentage >= 80);
+  const paie = paieDuMois(remuneres, paiements.map((p) => ({ ...p, remunereId: p.remunereId })), periode);
   const historique = Array.from({ length: 12 }, (_, i) => {
     const m = new Date(Date.UTC(courant.getUTCFullYear(), courant.getUTCMonth() - i, 1));
-    const cell = (d: DeviseKey) => ({
-      fonds: Number(fonds12.find((f) => f.devise === d && moisCle(f.mois) === moisCle(m))?.montant ?? 0),
-      dons: Number(dons12.find((x) => x.devise === d && moisCle(new Date(x.m)) === moisCle(m))?.total ?? 0),
-    });
-    return { m, USD: cell("USD"), CDF: cell("CDF") };
+    const p = moisDe(m);
+    const de = <T extends { date: Date }>(l: T[]) => l.filter((x) => moisDe(x.date) === p);
+    return { m, ...bilan([...de(dons), ...fonds.filter((f) => moisDe(f.mois) === p).map((f) => ({ ...f, annuleLe: null }))], [...de(depenses), ...de(paiements)]) };
   });
-  return { mois, precedent: new Date(Date.UTC(mois.getUTCFullYear(), mois.getUTCMonth() - 1, 1)), suivant, courant, dons, fondsMois, resume, historique };
+  return { nav, b, taux, alertes, paie, historique, fondsMois, periode };
 }
 
-export default async function FinancesPage(props: PageProps<"/gestion/finances">) {
-  const user = await requireUser(ADMINS);
-  const sp = await props.searchParams;
-  const { mois, precedent, suivant, courant, dons, fondsMois, resume, historique } = await load(typeof sp.mois === "string" ? sp.mois : undefined);
-  const today = new Date().toISOString().slice(0, 10);
+export default async function FinancesDashboard(props: PageProps<"/gestion/finances">) {
+  const user = await requirePerm("FINANCES");
+  const { nav, b, taux, alertes, paie, historique, fondsMois, periode } = await load((await props.searchParams).mois);
+  const nonPayes = paie.lignes.filter((l) => l.du && !l.paye).length;
 
   return (
     <div className="space-y-4">
-      <PageHead title="Finances" sub="Dons reçus et fonds mensuels de la fondation" />
-
-      <div className="flex items-center justify-between gap-3 rounded-3xl bg-white p-4">
-        <Link href={`/gestion/finances?mois=${moisCle(precedent)}`} className="rounded-full px-4 py-2 font-semibold text-navy hover:bg-mist">← {moisLabel(precedent)}</Link>
-        <h2 className="font-slab text-center text-2xl font-bold text-navy capitalize">{moisLabel(mois)}</h2>
-        {suivant <= courant ? (
-          <Link href={`/gestion/finances?mois=${moisCle(suivant)}`} className="rounded-full px-4 py-2 font-semibold text-navy hover:bg-mist">{moisLabel(suivant)} →</Link>
-        ) : <span className="w-24" />}
-      </div>
+      <PageHead title="Finances" sub="Entrées, sorties et solde par devise — sans conversion automatique" />
+      <FinanceTabs current="bord" mois={periode} />
+      <MoisNav path="/gestion/finances" {...nav} />
 
       <div className="grid gap-4 md:grid-cols-2">
-        {resume.map((r) => (
-          <section key={r.devise} className="rounded-3xl bg-white p-6">
-            <p className="font-semibold text-ink/70">{DEVISES[r.devise]}</p>
-            <dl className="mt-4 grid grid-cols-3 gap-3 text-center">
-              <div className="rounded-2xl bg-mist p-3"><dt className="text-sm text-ink/70">Fonds déclaré</dt><dd className="font-slab mt-1 text-xl font-bold text-navy">{formatMontant(r.fonds, r.devise)}</dd></div>
-              <div className="rounded-2xl bg-mist p-3"><dt className="text-sm text-ink/70">Dons ({r.nb})</dt><dd className="font-slab mt-1 text-xl font-bold text-navy">{formatMontant(r.recus, r.devise)}</dd></div>
-              <div className="rounded-2xl bg-navy p-3 text-white"><dt className="text-sm text-white/80">Total du mois</dt><dd className="font-slab mt-1 text-xl font-bold">{formatMontant(r.total, r.devise)}</dd></div>
+        {DEV.map((d) => (
+          <section key={d} className="rounded-3xl bg-white p-6">
+            <p className="font-semibold text-ink/70">{DEVISES[d]}</p>
+            <dl className="mt-4 grid grid-cols-3 gap-2 text-center">
+              <div className="rounded-2xl bg-mist p-3"><dt className="text-sm text-ink/70">Entrées</dt><dd className="font-slab mt-1 text-lg font-bold text-emerald-700 md:text-xl">{formatMontant(b.entrees[d], d)}</dd></div>
+              <div className="rounded-2xl bg-mist p-3"><dt className="text-sm text-ink/70">Sorties</dt><dd className="font-slab mt-1 text-lg font-bold text-rouge-600 md:text-xl">{formatMontant(b.sorties[d], d)}</dd></div>
+              <div className="rounded-2xl bg-navy p-3 text-white"><dt className="text-sm text-white/80">Solde</dt><dd className="font-slab mt-1 text-lg font-bold md:text-xl">{formatMontant(b.solde[d], d)}</dd></div>
             </dl>
           </section>
         ))}
       </div>
+      {taux && (
+        <p className="rounded-2xl bg-white px-5 py-3 text-sm text-ink/80">
+          Solde converti (taux saisi 1 USD = {taux.toLocaleString("fr-FR")} CDF) : <strong className="text-navy">{formatMontant(convertiUsd(b.solde, taux)!, "USD")}</strong>
+        </p>
+      )}
 
       <div className="grid gap-4 xl:grid-cols-2">
         <section className="rounded-3xl bg-white p-6">
-          <h2 className="mb-1 text-xl font-bold text-navy">Fonds du mois</h2>
-          {fondsMois.length === 0 ? (
-            <p className="mb-4 text-ink/70">Aucun fonds déclaré pour {moisLabel(mois)}.</p>
-          ) : (
-            <ul className="mb-4 space-y-1 text-sm text-ink/80">
-              {fondsMois.map((f) => <li key={f.id}><strong className="text-navy">{formatMontant(f.montant, f.devise)}</strong> — déclaré par {f.declarePar.name}, le {f.updatedAt.toLocaleDateString("fr-FR")}{f.note ? ` · ${f.note}` : ""}</li>)}
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="text-xl font-bold text-navy">Paiements des membres</h2>
+            <Link href={`/gestion/finances/paiements?mois=${periode}`} className="text-sm font-semibold text-navy underline">Détail</Link>
+          </div>
+          {paie.lignes.length === 0 ? <p className="text-ink/70">Aucun paiement prévu ce mois-ci.</p> : (
+            <ul className="space-y-1 text-sm">
+              {DEV.filter((d) => paie.aPayer[d] || paie.paye[d]).map((d) => (
+                <li key={d}>Total à payer <strong>{formatMontant(paie.aPayer[d], d)}</strong> · total payé <strong>{formatMontant(paie.paye[d], d)}</strong></li>
+              ))}
+              <li className={nonPayes ? "font-semibold text-rouge-600" : "text-emerald-700"}>{nonPayes ? `${nonPayes} membre(s) non payé(s)` : "Tous les membres dus sont payés"}</li>
             </ul>
           )}
-          {can.declarerFonds(user.role) ? (
-            <AdminForm action={declarerFonds} submit="Déclarer le fonds">
-              <div className="grid gap-3 sm:grid-cols-3">
-                <Text name="mois" label="Mois" type="month" defaultValue={moisCle(mois)} max={moisCle(courant)} required />
-                <DeviseSelect id="devise-fonds" />
-                <Text name="montant" id="montant-fonds" label="Montant" inputMode="decimal" placeholder="ex. 2 000" required />
-              </div>
-              <Area name="note" id="note-fonds" label="Note (facultatif)" rows={2} placeholder="Origine du fonds, affectation…" />
-              <p className="text-xs text-ink/70">Un seul fonds par mois et par devise : une nouvelle déclaration remplace la précédente.</p>
-            </AdminForm>
-          ) : (
-            <p className="rounded-xl bg-mist p-3 text-sm text-ink/70">Seul un super administrateur peut déclarer le fonds mensuel.</p>
-          )}
         </section>
-
         <section className="rounded-3xl bg-white p-6">
-          <h2 className="mb-4 text-xl font-bold text-navy">Enregistrer un don</h2>
-          <AdminForm action={addDon} resetOnSuccess submit="Enregistrer le don">
-            <div className="grid gap-3 sm:grid-cols-3">
-              <Text name="date" label="Date" type="date" defaultValue={today} max={today} required />
-              <DeviseSelect id="devise-don" />
-              <Text name="montant" id="montant-don" label="Montant" inputMode="decimal" placeholder="ex. 50" required />
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Text name="donateur" label="Donateur (vide = anonyme)" />
-              <Text name="telephone" label="Téléphone (facultatif)" type="tel" />
-              <div>
-                <label htmlFor="moyen" className={admLabel}>Moyen</label>
-                <select id="moyen" name="moyen" defaultValue="MOBILE_MONEY" className={admInput}>
-                  {Object.entries(MOYENS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
-                </select>
-              </div>
-              <Text name="reference" label="Référence (n° transaction, reçu…)" />
-            </div>
-            <Area name="note" id="note-don" label="Note (facultatif)" rows={2} />
-          </AdminForm>
+          <h2 className="mb-3 text-xl font-bold text-navy">Budgets</h2>
+          {alertes.length === 0 ? <p className="text-ink/70">Aucun budget atteint à 80 % ou plus.</p> : (
+            <ul className="space-y-2 text-sm">
+              {alertes.map((a) => (
+                <li key={`${a.categorie}${a.devise}${a.periode}`} className={`rounded-xl px-3 py-2 ${a.depasse ? "bg-rouge/10 font-semibold text-rouge-600" : "bg-ocre/15"}`}>
+                  {a.depasse ? "Dépassé" : "Presque atteint"} : {CATEGORIES_DEPENSE[a.categorie as keyof typeof CATEGORIES_DEPENSE]} ({a.periode === "MENSUEL" ? "mensuel" : "annuel"}) — {formatMontant(a.depense, a.devise)} / {formatMontant(a.prevu, a.devise)} ({a.pourcentage} %)
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       </div>
 
-      <section className="overflow-hidden rounded-3xl bg-white">
-        <h2 className="p-6 pb-3 text-xl font-bold text-navy">Dons de {moisLabel(mois)}</h2>
-        {dons.length === 0 ? (
-          <p className="px-6 pb-6 text-ink/70">Aucun don enregistré ce mois-ci.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-left text-sm">
-              <thead className="bg-mist/60 text-ink/70">
-                <tr>{["Date", "Donateur", "Montant", "Moyen", "Référence", "Saisi par", ""].map((h) => <th key={h} className="px-4 py-2.5 font-semibold">{h}</th>)}</tr>
-              </thead>
-              <tbody className="divide-y divide-navy/5">
-                {dons.map((d) => (
-                  <tr key={d.id}>
-                    <td className="px-4 py-2.5 whitespace-nowrap">{d.date.toLocaleDateString("fr-FR")}</td>
-                    <td className="px-4 py-2.5">{d.donateur ?? <em className="text-ink/65">Anonyme</em>}{d.telephone && <span className="block text-xs text-ink/65">{d.telephone}</span>}</td>
-                    <td className="px-4 py-2.5 font-semibold whitespace-nowrap text-navy">{formatMontant(d.montant, d.devise)}</td>
-                    <td className="px-4 py-2.5">{MOYENS[d.moyen]}</td>
-                    <td className="px-4 py-2.5">{d.reference}{d.note && <span className="block text-xs text-ink/65">{d.note}</span>}</td>
-                    <td className="px-4 py-2.5 text-ink/70">{d.saisiPar.name}</td>
-                    <td className="px-4 py-2.5">
-                      {can.declarerFonds(user.role) && (
-                        <form action={deleteDon.bind(null, d.id)}>
-                          <ConfirmButton message="Supprimer définitivement ce don ?" className="font-semibold text-rouge-600 hover:underline">Supprimer</ConfirmButton>
-                        </form>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+      <section className="rounded-3xl bg-white p-6">
+        <h2 className="mb-1 text-xl font-bold text-navy">Fonds du mois</h2>
+        {fondsMois.length === 0 ? <p className="mb-4 text-ink/70">Aucun fonds déclaré pour {moisLabel(nav.mois)}.</p> : (
+          <ul className="mb-4 space-y-1 text-sm text-ink/80">
+            {fondsMois.map((f) => <li key={f.id}><strong className="text-navy">{formatMontant(f.montant, f.devise)}</strong> — déclaré par {f.declarePar.name}, le {f.updatedAt.toLocaleDateString("fr-FR")}{f.note ? ` · ${f.note}` : ""}</li>)}
+          </ul>
         )}
+        {user.role.superAdmin ? (
+          <AdminForm action={declarerFonds} submit="Déclarer le fonds">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Text name="mois" label="Mois" type="month" defaultValue={periode} max={moisDe(nav.courant)} required />
+              <div>
+                <label htmlFor="devise-fonds" className={admLabel}>Devise</label>
+                <select id="devise-fonds" name="devise" className={admInput}>{DEV.map((d) => <option key={d} value={d}>{DEVISES[d]}</option>)}</select>
+              </div>
+              <Text name="montant" id="montant-fonds" label="Montant" inputMode="decimal" placeholder="ex. 2 000" required />
+            </div>
+            <Area name="note" id="note-fonds" label="Note (facultatif)" rows={2} />
+            <p className="text-xs text-ink/70">Un fonds par mois et par devise : une nouvelle déclaration remplace la précédente.</p>
+          </AdminForm>
+        ) : <p className="rounded-xl bg-mist p-3 text-sm text-ink/70">Seul le super admin déclare le fonds mensuel.</p>}
       </section>
 
       <section className="overflow-hidden rounded-3xl bg-white">
         <h2 className="p-6 pb-3 text-xl font-bold text-navy">12 derniers mois</h2>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-left text-sm">
+          <table className="w-full min-w-[720px] text-right text-sm">
             <thead className="bg-mist/60 text-ink/70">
               <tr>
-                <th className="px-4 py-2.5 font-semibold">Mois</th>
-                {DEV.map((d) => [<th key={`f${d}`} className="px-4 py-2.5 text-right font-semibold">Fonds {d}</th>, <th key={`d${d}`} className="px-4 py-2.5 text-right font-semibold">Dons {d}</th>, <th key={`t${d}`} className="px-4 py-2.5 text-right font-semibold">Total {d}</th>])}
+                <th className="px-4 py-2.5 text-left font-semibold">Mois</th>
+                {DEV.map((d) => [<th key={`e${d}`} className="px-3 py-2.5 font-semibold">Entrées {d}</th>, <th key={`s${d}`} className="px-3 py-2.5 font-semibold">Sorties {d}</th>, <th key={`b${d}`} className="px-3 py-2.5 font-semibold">Solde {d}</th>])}
               </tr>
             </thead>
             <tbody className="divide-y divide-navy/5">
               {historique.map((h) => (
-                <tr key={moisCle(h.m)} className={moisCle(h.m) === moisCle(mois) ? "bg-mist/60" : ""}>
-                  <td className="px-4 py-2.5"><Link href={`/gestion/finances?mois=${moisCle(h.m)}`} className="font-semibold text-navy capitalize hover:underline">{moisLabel(h.m)}</Link></td>
+                <tr key={moisDe(h.m)} className={moisDe(h.m) === periode ? "bg-mist/60" : ""}>
+                  <td className="px-4 py-2.5 text-left"><Link href={`/gestion/finances?mois=${moisDe(h.m)}`} className="font-semibold text-navy capitalize hover:underline">{moisLabel(h.m)}</Link></td>
                   {DEV.map((d) => [
-                    <td key={`f${d}`} className="px-4 py-2.5 text-right whitespace-nowrap">{formatMontant(h[d].fonds, d)}</td>,
-                    <td key={`d${d}`} className="px-4 py-2.5 text-right whitespace-nowrap">{formatMontant(h[d].dons, d)}</td>,
-                    <td key={`t${d}`} className="px-4 py-2.5 text-right font-semibold whitespace-nowrap text-navy">{formatMontant(h[d].fonds + h[d].dons, d)}</td>,
+                    <td key={`e${d}`} className="px-3 py-2.5 whitespace-nowrap">{formatMontant(h.entrees[d], d)}</td>,
+                    <td key={`s${d}`} className="px-3 py-2.5 whitespace-nowrap">{formatMontant(h.sorties[d], d)}</td>,
+                    <td key={`b${d}`} className={`px-3 py-2.5 font-semibold whitespace-nowrap ${h.solde[d] < 0 ? "text-rouge-600" : "text-navy"}`}>{formatMontant(h.solde[d], d)}</td>,
                   ])}
                 </tr>
               ))}

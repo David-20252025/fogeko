@@ -3,13 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { FormState } from "@/components/admin/admin-form";
-import { ADMINS, assertRole, EDITORS } from "@/lib/auth";
+import { audit } from "@/lib/audit";
+import { assertPerm } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { slugify } from "@/lib/slug";
 import { removeContentImage, saveContentImage } from "@/lib/storage";
 import { videoEmbed } from "@/lib/video";
 
-const ADMIN = ADMINS;
 const s = (f: FormData, k: string, max = 300) => String(f.get(k) ?? "").trim().slice(0, max);
 const int = (f: FormData, k: string) => Math.max(0, Math.min(1_000_000, Math.round(Number(f.get(k)) || 0)));
 const bool = (f: FormData, k: string) => f.get(k) === "on";
@@ -31,7 +31,7 @@ const fail = (e: unknown): FormState => ({ error: e instanceof Error ? e.message
 /* ───── Actualités ───── */
 
 export async function saveArticle(id: number | null, _: FormState, f: FormData): Promise<FormState> {
-  await assertRole(EDITORS);
+  await assertPerm("ACTUALITES", id ? "modifier" : "creer");
   const titre = s(f, "titre", 200), extrait = s(f, "extrait", 400), contenu = s(f, "contenu", 20_000);
   const categorieId = Number(f.get("categorieId"));
   const publieLe = new Date(s(f, "publieLe") || Date.now());
@@ -55,14 +55,15 @@ export async function saveArticle(id: number | null, _: FormState, f: FormData):
 }
 
 export async function deleteArticle(id: number) {
-  await assertRole(ADMIN);
+  const me = await assertPerm("ACTUALITES", "supprimer");
   const a = await db.article.delete({ where: { id } });
   await removeContentImage(a.image);
+  await audit(me.id, "deleteArticle", undefined, id);
   redirect("/gestion/actualites");
 }
 
 export async function addCategory(_: FormState, f: FormData): Promise<FormState> {
-  await assertRole(EDITORS);
+  await assertPerm("ACTUALITES", "creer");
   const nom = s(f, "nom", 60);
   if (nom.length < 2) return { error: "Nom trop court." };
   if (await db.newsCategory.findFirst({ where: { OR: [{ nom }, { slug: slugify(nom) }] } })) return { error: "Cette catégorie existe déjà." };
@@ -72,23 +73,24 @@ export async function addCategory(_: FormState, f: FormData): Promise<FormState>
 }
 
 export async function toggleCategory(id: number) {
-  await assertRole(EDITORS);
+  await assertPerm("ACTUALITES", "modifier");
   const c = await db.newsCategory.findUniqueOrThrow({ where: { id } });
   await db.newsCategory.update({ where: { id }, data: { visible: !c.visible } });
   revalidatePath("/gestion/actualites");
 }
 
 export async function deleteCategory(id: number) {
-  await assertRole(ADMIN);
+  const me = await assertPerm("ACTUALITES", "supprimer");
   if (await db.article.count({ where: { categorieId: id } })) throw new Error("Catégorie non vide");
   await db.newsCategory.delete({ where: { id } });
+  await audit(me.id, "deleteCategory", undefined, id);
   revalidatePath("/gestion/actualites");
 }
 
 /* ───── Galerie ───── */
 
 export async function addGalleryItem(_: FormState, f: FormData): Promise<FormState> {
-  await assertRole(EDITORS);
+  await assertPerm("GALERIE", "creer");
   const titre = s(f, "titre", 160), videoUrl = s(f, "videoUrl", 500);
   if (titre.length < 2) return { error: "Donnez un titre (il sert aussi de description pour l'accessibilité)." };
   if (videoUrl) {
@@ -105,7 +107,7 @@ export async function addGalleryItem(_: FormState, f: FormData): Promise<FormSta
 }
 
 export async function updateGalleryItem(id: number, _: FormState, f: FormData): Promise<FormState> {
-  await assertRole(EDITORS);
+  await assertPerm("GALERIE", "modifier");
   const titre = s(f, "titre", 160);
   if (titre.length < 2) return { error: "Titre trop court." };
   await db.galleryItem.update({ where: { id }, data: { titre, ordre: int(f, "ordre") } });
@@ -114,16 +116,17 @@ export async function updateGalleryItem(id: number, _: FormState, f: FormData): 
 }
 
 export async function deleteGalleryItem(id: number) {
-  await assertRole(ADMIN);
+  const me = await assertPerm("GALERIE", "supprimer");
   const g = await db.galleryItem.delete({ where: { id } });
   await removeContentImage(g.image);
+  await audit(me.id, "deleteGalleryItem", undefined, id);
   revalidatePath("/gestion/galerie");
 }
 
 /* ───── Actions de terrain ───── */
 
 export async function saveAction(id: number | null, _: FormState, f: FormData): Promise<FormState> {
-  await assertRole(EDITORS);
+  await assertPerm("ACTIONS", id ? "modifier" : "creer");
   const titre = s(f, "titre", 160), resume = s(f, "resume", 500), contenu = s(f, "contenu", 10_000);
   if (titre.length < 3) return { error: "Le titre est obligatoire." };
   if (resume.length < 10) return { error: "Le résumé est trop court." };
@@ -143,16 +146,17 @@ export async function saveAction(id: number | null, _: FormState, f: FormData): 
 }
 
 export async function deleteAction(id: number) {
-  await assertRole(ADMIN);
+  const me = await assertPerm("ACTIONS", "supprimer");
   const a = await db.action.delete({ where: { id } });
   await removeContentImage(a.image);
+  await audit(me.id, "deleteAction", undefined, id);
   redirect("/gestion/actions");
 }
 
 /* ───── Textes du site et frise ───── */
 
 export async function saveSettings(_: FormState, f: FormData): Promise<FormState> {
-  await assertRole(EDITORS);
+  const me = await assertPerm("TEXTES", "modifier");
   const req = ["heroTitre", "heroSousTitre", "mission", "vision", "valeurs", "fondateurBio", "telephone", "email", "adresse"] as const;
   const data = Object.fromEntries(req.map((k) => [k, s(f, k, 3000)])) as Record<(typeof req)[number], string>;
   const missing = req.find((k) => !data[k]);
@@ -171,12 +175,13 @@ export async function saveSettings(_: FormState, f: FormData): Promise<FormState
       facebook: url("facebook"), youtube: url("youtube"), tiktok: url("tiktok"), instagram: url("instagram"),
     },
   });
+  await audit(me.id, "textes.modification", "SiteSettings", 1);
   revalidatePath("/gestion/site");
   return { ok: true };
 }
 
 export async function saveTimeline(id: number | null, _: FormState, f: FormData): Promise<FormState> {
-  await assertRole(EDITORS);
+  await assertPerm("TEXTES", id ? "modifier" : "creer");
   const data = { annee: s(f, "annee", 40), titre: s(f, "titre", 160), texte: s(f, "texte", 1000), ordre: int(f, "ordre") };
   if (!data.titre) return { error: "Le titre est obligatoire." };
   if (id) await db.timelineEvent.update({ where: { id }, data });
@@ -186,30 +191,32 @@ export async function saveTimeline(id: number | null, _: FormState, f: FormData)
 }
 
 export async function deleteTimeline(id: number) {
-  await assertRole(ADMIN);
+  const me = await assertPerm("TEXTES", "supprimer");
   await db.timelineEvent.delete({ where: { id } });
+  await audit(me.id, "deleteTimeline", undefined, id);
   revalidatePath("/gestion/site");
 }
 
 /* ───── Messages de contact ───── */
 
 export async function toggleRead(id: number) {
-  await assertRole(EDITORS);
+  await assertPerm("MESSAGES", "modifier");
   const m = await db.contactMessage.findUniqueOrThrow({ where: { id } });
   await db.contactMessage.update({ where: { id }, data: { lu: !m.lu } });
   revalidatePath("/gestion", "layout");
 }
 
 export async function deleteMessage(id: number) {
-  await assertRole(ADMIN);
+  const me = await assertPerm("MESSAGES", "supprimer");
   await db.contactMessage.delete({ where: { id } });
+  await audit(me.id, "deleteMessage", undefined, id);
   revalidatePath("/gestion", "layout");
 }
 
 /* ───── Membres de l'administration ───── */
 
 export async function saveDirigeant(id: number | null, _: FormState, f: FormData): Promise<FormState> {
-  await assertRole(EDITORS);
+  await assertPerm("ADMINISTRATION", id ? "modifier" : "creer");
   const nom = s(f, "nom", 80), prenom = s(f, "prenom", 80), postNom = s(f, "postNom", 80), poste = s(f, "poste", 120);
   if (nom.length < 2 || prenom.length < 2) return { error: "Le nom et le prénom sont obligatoires." };
   if (poste.length < 2) return { error: "Indiquez le poste occupé." };
@@ -228,8 +235,9 @@ export async function saveDirigeant(id: number | null, _: FormState, f: FormData
 }
 
 export async function deleteDirigeant(id: number) {
-  await assertRole(ADMIN);
+  const me = await assertPerm("ADMINISTRATION", "supprimer");
   const d = await db.dirigeant.delete({ where: { id } });
   await removeContentImage(d.photo);
+  await audit(me.id, "deleteDirigeant", undefined, id);
   redirect("/gestion/administration");
 }

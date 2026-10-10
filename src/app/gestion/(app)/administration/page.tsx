@@ -1,18 +1,20 @@
 import Image from "next/image";
 import Link from "next/link";
+import { AdminTabs } from "@/components/admin/admin-tabs";
 import { PageHead } from "@/components/admin/page-head";
-import { EDITORS, requireUser } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { db } from "@/lib/db";
 
 export default async function BoardAdmin() {
-  await requireUser(EDITORS);
+  const user = await requirePerm("ADMINISTRATION");
   const people = await db.dirigeant.findMany({ orderBy: [{ ordre: "asc" }, { createdAt: "asc" }] });
   return (
     <div className="space-y-4">
+      <AdminTabs user={user} current="equipe" />
       <PageHead
         title="Administration"
         sub="Les membres de l'administration affichés sur la page publique « Administration »"
-        action={{ href: "/gestion/administration/nouveau", label: "+ Ajouter une personne" }}
+        action={user.perms.ADMINISTRATION.creer ? { href: "/gestion/administration/nouveau", label: "+ Ajouter une personne" } : undefined}
       />
       <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {people.map((p) => (

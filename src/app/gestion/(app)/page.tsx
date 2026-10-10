@@ -6,6 +6,7 @@ import { MembersMap, type MapPoint } from "@/components/admin/members-map";
 import { StatutBadge } from "@/components/admin/statut-badge";
 import { COMMUNES_GEO } from "@/lib/communes-geo";
 import { CATEGORIES, formatNumero, photoUrl } from "@/lib/members";
+import { MODULES } from "@/lib/permissions";
 
 const DAY = 86_400_000;
 const WEEKS = 12;
@@ -53,7 +54,23 @@ async function load() {
 }
 
 export default async function Dashboard() {
-  await requireUser();
+  const user = await requireUser();
+  // Les chiffres et photos des membres ne s'affichent qu'avec la permission « voir » Membres
+  if (!user.perms.MEMBRES.voir) {
+    const modules = MODULES.filter((m) => user.perms[m.key].voir);
+    return (
+      <div className="space-y-4">
+        <div className="rounded-3xl bg-white p-6">
+          <h1 className="font-slab text-3xl font-bold text-navy md:text-4xl">Bonjour {user.name}</h1>
+          <p className="mt-1 text-ink/70">Vos modules :</p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            {modules.map((m) => <Link key={m.key} href={m.href} className="rounded-2xl bg-mist px-5 py-4 font-semibold text-navy hover:bg-navy hover:text-white">{m.label}</Link>)}
+            {modules.length === 0 && <p className="text-ink/70">Aucun module ne vous est encore ouvert : adressez-vous au super admin.</p>}
+          </div>
+        </div>
+      </div>
+    );
+  }
   const { total, actifs, attente, week, delta, byCat, byCommune, communeName, recent, weeks, points } = await load();
 
   const cards = [

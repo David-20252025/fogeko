@@ -38,7 +38,10 @@ export function ImageField({ name = "image", label = "Image", current, required 
     <div>
       <span className={admLabel}>{label}</span>
       <div className="flex flex-wrap items-center gap-4">
-        {current && <Image src={current} alt="" width={160} height={120} className="h-20 w-28 rounded-xl object-cover" />}
+        {current && (current.startsWith("/gestion/")
+          // eslint-disable-next-line @next/next/no-img-element -- photo protégée : l'optimiseur d'images n'a pas la session
+          ? <img src={current} alt="" className="size-20 rounded-full object-cover" />
+          : <Image src={current} alt="" width={160} height={120} className="h-20 w-28 rounded-xl object-cover" />)}
         <input type="file" name={name} accept="image/jpeg,image/png,image/webp" required={required && !current}
           className="w-full min-w-0 text-sm sm:w-auto file:mr-3 file:rounded-full file:border-0 file:bg-mist file:px-4 file:py-2 file:font-semibold file:text-navy" />
       </div>

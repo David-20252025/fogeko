@@ -3,6 +3,7 @@
 import "dotenv/config";
 import { db } from "../src/lib/db";
 import { hashPassword } from "../src/lib/password";
+import { DEFAULT_MATRIX, fromLetters, MODULES } from "../src/lib/permissions";
 
 const DEV = process.env.NODE_ENV !== "production";
 
@@ -13,12 +14,21 @@ const COMMUNES = [
 ];
 
 async function main() {
-  // Premier compte (super administrateur), créé une seule fois à partir des variables d'environnement
+  // Rôles de départ ; leurs permissions ne sont créées que si le rôle n'en a aucune (la matrice modifiée dans l'admin est conservée)
+  const superAdmin = await db.role.upsert({ where: { nom: "Super admin" }, update: { superAdmin: true }, create: { nom: "Super admin", superAdmin: true } });
+  for (const [nom, matrice] of Object.entries(DEFAULT_MATRIX)) {
+    const role = await db.role.upsert({ where: { nom }, update: {}, create: { nom } });
+    if ((await db.rolePermission.count({ where: { roleId: role.id } })) === 0)
+      await db.rolePermission.createMany({ data: MODULES.map(({ key }) => ({ roleId: role.id, module: key, ...fromLetters(matrice[key]) })) });
+  }
+
+  // Premier compte (super admin), créé une seule fois à partir des variables d'environnement
   const { ADMIN_EMAIL, ADMIN_PASSWORD } = process.env;
   if (ADMIN_EMAIL && ADMIN_PASSWORD && (await db.user.count()) === 0) {
-    await db.user.create({ data: { email: ADMIN_EMAIL.toLowerCase(), name: "Super administrateur", role: "SUPERADMIN", passwordHash: await hashPassword(ADMIN_PASSWORD) } });
-    console.log(`Compte administrateur créé : ${ADMIN_EMAIL}`);
+    await db.user.create({ data: { email: ADMIN_EMAIL.toLowerCase(), name: "Super administrateur", roleId: superAdmin.id, passwordHash: await hashPassword(ADMIN_PASSWORD) } });
+    console.log(`Compte super admin créé : ${ADMIN_EMAIL}`);
   }
+  await db.parametres.upsert({ where: { id: 1 }, update: {}, create: {} });
 
   for (const nom of COMMUNES) await db.commune.upsert({ where: { nom }, update: {}, create: { nom } });
 

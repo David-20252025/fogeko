@@ -3,20 +3,20 @@ import { notFound } from "next/navigation";
 import { ConfirmButton } from "@/components/admin/confirm-button";
 import { MemberEditForm } from "@/components/admin/member-edit-form";
 import { StatutBadge } from "@/components/admin/statut-badge";
-import { can, requireUser } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { CATEGORIES, formatNumero, photoUrl } from "@/lib/members";
 import { deleteMember, setStatut } from "../actions";
 
 export default async function MemberPage(props: PageProps<"/gestion/membres/[id]">) {
-  const user = await requireUser();
+  const user = await requirePerm("MEMBRES");
   const { id } = await props.params;
   const [m, communes] = await Promise.all([
     db.member.findUnique({ where: { id }, include: { commune: true } }),
     db.commune.findMany({ orderBy: { nom: "asc" }, select: { id: true, nom: true } }),
   ]);
   if (!m) notFound();
-  const editor = can.edit(user.role);
+  const editor = user.perms.MEMBRES.modifier;
   const quick =
     m.statut === "EN_ATTENTE" ? { s: "ACTIF" as const, l: "Valider l'adhésion", c: "bg-emerald-600 text-white hover:bg-emerald-700" }
     : m.statut === "ACTIF" ? { s: "SUSPENDU" as const, l: "Suspendre", c: "border-2 border-rouge/30 text-rouge-600 hover:bg-rouge/5" }
@@ -51,7 +51,7 @@ export default async function MemberPage(props: PageProps<"/gestion/membres/[id]
               <a href={`https://wa.me/${m.telephone.replace(/\D/g, "")}`} target="_blank" rel="noopener" className="rounded-full bg-[#25D366] px-5 py-3 font-semibold text-white">Écrire sur WhatsApp</a>
             </div>
           )}
-          {can.delete(user.role) && (
+          {user.perms.MEMBRES.supprimer && (
             <form action={deleteMember.bind(null, m.id)} className="mt-6 border-t border-navy/5 pt-4">
               <ConfirmButton message={`Supprimer définitivement ${m.prenom} ${m.nom} et sa photo ?`} className="text-sm font-semibold text-rouge-600 hover:underline">Supprimer ce membre</ConfirmButton>
             </form>

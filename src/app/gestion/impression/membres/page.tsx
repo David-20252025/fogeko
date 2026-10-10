@@ -1,12 +1,12 @@
 import Image from "next/image";
 import { AutoPrint } from "@/components/admin/auto-print";
-import { EDITORS, requireUser } from "@/lib/auth";
+import { requirePerm } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { memberWhere, parseFilters } from "@/lib/member-query";
 import { CATEGORIES, formatNumero, photoUrl, STATUTS } from "@/lib/members";
 
 export default async function PrintMembers(props: PageProps<"/gestion/impression/membres">) {
-  await requireUser(EDITORS);
+  await requirePerm("MEMBRES", "exporter");
   const f = parseFilters(await props.searchParams);
   const [members, commune] = await Promise.all([
     db.member.findMany({ where: memberWhere(f), include: { commune: true }, orderBy: { numero: "asc" } }),
