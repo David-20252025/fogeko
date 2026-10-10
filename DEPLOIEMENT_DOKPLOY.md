@@ -42,13 +42,13 @@ première adhésion numérotée FOGEKO-0001.
    ```
 
    `ADMIN_EMAIL` / `ADMIN_PASSWORD` ne servent qu'au tout premier démarrage (création du compte si aucun n'existe).
-   Après la première connexion : changer le mot de passe dans **/gestion/utilisateurs**, puis supprimer ces deux variables.
+   Après la première connexion : changer le mot de passe dans **Mon profil** (`/gestion/profil`), puis supprimer ces deux variables.
 
 4. **Advanced → Volumes / Mounts** → *Volume Mount* :
    - Volume name : `fogeko-uploads`
    - Mount path : `/app/uploads`
 
-   ⚠️ Indispensable : sans ce volume, **les photos des membres et des actualités sont perdues à chaque redéploiement**.
+   ⚠️ Indispensable : sans ce volume, **les photos (membres, actualités, comptes) et les archives (PDF, justificatifs) sont perdues à chaque redéploiement**.
    Utiliser un *volume nommé* (pas un bind mount) : c'est ce qui permet les Volume Backups (étape 4).
 
 5. Onglet **Domains** → ajouter `fogeko.com` : path `/`, **container port `3000`**, **HTTPS activé**, certificat **Let's Encrypt**.

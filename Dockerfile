@@ -25,7 +25,7 @@ RUN npm init -y >/dev/null \
  && npm i --no-audit --no-fund prisma@7.10.0 @prisma/client@7.10.0 @prisma/adapter-pg@7.10.0 pg@8.23.1 dotenv@18.0.6 tsx@4.23.15
 COPY prisma ./prisma
 COPY prisma.config.ts tsconfig.json ./
-COPY src/lib/db.ts src/lib/password.ts ./src/lib/
+COPY src/lib/db.ts src/lib/password.ts src/lib/permissions.ts ./src/lib/
 COPY scripts/admin.ts ./scripts/
 COPY --from=builder /app/src/generated ./src/generated
 

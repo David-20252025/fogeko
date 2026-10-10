@@ -5,7 +5,35 @@ Site public (accueil, à propos, administration, actions, actualités, galerie, 
 Connexion : **`/connexion`** (ou lien « Connexion » en bas de chaque page).
 
 **Technique** : Next.js 16 · Prisma 7 · PostgreSQL · Tailwind CSS 4 · Docker (Dokploy).
-Déploiement : voir [DEPLOIEMENT_DOKPLOY.md](DEPLOIEMENT_DOKPLOY.md).
+
+---
+
+## 0. Mise en ligne avec Dokploy — l'essentiel
+
+Guide détaillé (captures des réglages, sauvegardes, dépannage) : **[DEPLOIEMENT_DOKPLOY.md](DEPLOIEMENT_DOKPLOY.md)**.
+
+1. **Pousser le code** sur GitHub/GitLab (branche `main`). `.env`, `uploads/` et `.pgdata/` restent hors du dépôt (`.gitignore`).
+2. **DNS** : enregistrements A `fogeko.com` et `www.fogeko.com` → IP du serveur Dokploy.
+3. **Dokploy → Create Project « FOGEKO » → Create Service → Database → PostgreSQL** (base, utilisateur `fogeko`,
+   mot de passe long) → *Deploy* → copier l'**Internal Connection URL**.
+4. **Create Service → Application** : source = le dépôt, branche `main`, **Build Type : Dockerfile**.
+5. **Environment** (modèle : [.env.production.example](.env.production.example)) :
+   ```
+   DATABASE_URL=<Internal Connection URL>
+   AUTH_SECRET=<openssl rand -hex 32>
+   SITE_URL=https://fogeko.com
+   ADMIN_EMAIL=asumanid7@gmail.com
+   ADMIN_PASSWORD=<10 caractères minimum>
+   ```
+6. **Volume** (indispensable) : volume nommé `fogeko-uploads` monté sur **`/app/uploads`** — il contient les photos
+   **et les archives** (PDF, justificatifs). Sans lui, tout est perdu à chaque redéploiement.
+7. **Domains** : `fogeko.com` et `www.fogeko.com`, port **3000**, HTTPS + Let's Encrypt.
+8. **Deploy**, puis vérifier : `https://fogeko.com/health` → `{"status":"ok"}`, connexion sur `/connexion`.
+9. **Le jour même** : sauvegardes automatiques de la base et du volume (section 4 du guide), puis retirer
+   `ADMIN_EMAIL` / `ADMIN_PASSWORD` de l'Environment.
+
+Au démarrage, le conteneur applique seul les migrations et les données initiales (communes, textes, rôles, premier
+super admin) : rien à lancer à la main. Mise à jour du code = push sur `main` puis *Deploy*.
 
 ---
 
@@ -81,14 +109,14 @@ tests/                      Tests automatiques
 
 ## 4. Rôles
 
-| Rôle | Peut |
-|---|---|
-| **Super administrateur** | Tout, y compris **déclarer le fonds mensuel**, supprimer un don et gérer les autres super administrateurs |
-| **Administrateur** | Tout (comptes, suppressions, enregistrement des dons) sauf le fonds mensuel ; ne peut ni créer ni modifier un super administrateur |
-| **Secrétaire** | Gérer membres (valider, modifier, exporter, cartes) et contenus, sans rien supprimer, sans accès aux finances |
-| **Lecteur** | Consulter le tableau de bord et les fiches, sans modification ni export |
+Six rôles : **Super admin**, Administrateur, Trésorier, Secrétaire, Communication, Lecteur. Chaque rôle a des droits
+(voir / créer / modifier / supprimer / exporter) sur les 9 modules, modifiables dans **Administration → Rôles** ;
+un compte peut recevoir des droits personnalisés. Le super admin a tous les droits, crée les comptes (photo obligatoire),
+déclare le fonds mensuel, désigne les membres rémunérés et seul peut supprimer une archive. Toutes les actions
+sensibles sont inscrites dans **Administration → Journal**.
 
-Le premier compte créé au déploiement (`ADMIN_EMAIL`) est super administrateur ; il doit toujours en rester au moins un.
+Le premier compte créé au déploiement (`ADMIN_EMAIL`) est super admin ; il doit toujours en rester au moins un.
+Chacun change son mot de passe dans **Mon profil**.
 
 ### Cartes de membre
 
