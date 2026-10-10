@@ -16,14 +16,17 @@ const I: Record<Module, string> = {
   TEXTES: "M4 6h16M4 12h10M4 18h16",
   MESSAGES: "M3 5h18v14H3zM3 7l9 6 9-6",
 };
+const USERS_ICON = "M9 11.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM2.5 20a6.5 6.5 0 0 1 13 0M17 11l2 2 4-4";
+// La gestion des comptes a aussi son entrée « Utilisateurs » (super admin)
+const estComptes = (p: string) => p.startsWith("/gestion/utilisateurs") || p.startsWith("/gestion/administration/comptes");
 
 /** Menu : les 9 modules dans l'ordre imposé, uniquement ceux que le compte peut voir (le tableau de bord s'ouvre par le logo). */
-export function AdminNav({ visible, unread }: { visible: Module[]; unread: number }) {
+export function AdminNav({ visible, unread, utilisateurs = false }: { visible: Module[]; unread: number; utilisateurs?: boolean }) {
   const path = usePathname();
   return (
     <nav aria-label="Gestion" className="flex gap-1 overflow-x-auto lg:flex-col lg:overflow-visible">
       {MODULES.filter((m) => visible.includes(m.key)).map((m) => {
-        const active = path.startsWith(m.href);
+        const active = path.startsWith(m.href) && !(m.key === "ADMINISTRATION" && estComptes(path));
         return (
           <Link key={m.key} href={m.href} aria-current={active ? "page" : undefined}
             className={`relative flex shrink-0 items-center gap-3 rounded-xl px-3.5 py-2.5 font-medium transition lg:py-3 ${active ? "bg-navy text-white" : "text-ink/70 hover:bg-mist hover:text-navy"}`}>
@@ -33,6 +36,13 @@ export function AdminNav({ visible, unread }: { visible: Module[]; unread: numbe
           </Link>
         );
       })}
+      {utilisateurs && (
+        <Link href="/gestion/utilisateurs" aria-current={estComptes(path) ? "page" : undefined}
+          className={`relative flex shrink-0 items-center gap-3 rounded-xl px-3.5 py-2.5 font-medium transition lg:py-3 ${estComptes(path) ? "bg-navy text-white" : "text-ink/70 hover:bg-mist hover:text-navy"}`}>
+          <svg viewBox="0 0 24 24" className="size-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={USERS_ICON} /></svg>
+          Utilisateurs
+        </Link>
+      )}
     </nav>
   );
 }

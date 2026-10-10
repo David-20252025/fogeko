@@ -24,7 +24,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/gestion">)
           <Link href="/" target="_blank" className="text-sm font-semibold text-navy lg:hidden">Voir le site ↗</Link>
         </div>
         <p className="mt-6 mb-2 hidden px-3.5 text-xs font-semibold tracking-widest text-ink/65 uppercase lg:block">Menu</p>
-        <div className="mt-4 lg:mt-0"><AdminNav visible={visible} unread={unread} /></div>
+        <div className="mt-4 lg:mt-0"><AdminNav visible={visible} unread={unread} utilisateurs={user.role.superAdmin} /></div>
         <div className="mt-auto hidden lg:block">
           <div className="relative overflow-hidden rounded-2xl bg-navy p-4 text-white">
             <Image src="/img/colombe.png" alt="" width={264} height={293} className="absolute -right-4 -bottom-4 w-20 opacity-15 brightness-0 invert" />
