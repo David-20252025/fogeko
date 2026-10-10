@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CardSelection } from "@/components/admin/card-selection";
 import { StatutBadge } from "@/components/admin/statut-badge";
 import { can, requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
@@ -35,7 +36,7 @@ export default async function MembersPage(props: PageProps<"/gestion/membres">) 
         {can.export(user.role) && (
           <div className="flex flex-wrap gap-2">
             <a href={`/gestion/membres/export?${qs}`} className="rounded-full bg-navy px-5 py-2.5 font-semibold text-white hover:bg-navy-700">Export Excel</a>
-            <Link href={`/gestion/impression/cartes?${qs}`} target="_blank" className="rounded-full border-2 border-navy/15 px-5 py-2.5 font-semibold text-navy hover:border-navy">Cartes</Link>
+            <Link href={`/gestion/impression/cartes?${qs}`} target="_blank" className="rounded-full border-2 border-navy/15 px-5 py-2.5 font-semibold text-navy hover:border-navy">Cartes (tous les résultats)</Link>
             <Link href={`/gestion/impression/membres?${qs}`} target="_blank" className="rounded-full border-2 border-navy px-5 py-2.5 font-semibold text-navy hover:bg-navy hover:text-white">Export PDF</Link>
           </div>
         )}
@@ -62,6 +63,10 @@ export default async function MembersPage(props: PageProps<"/gestion/membres">) 
         </div>
       </form>
 
+      {can.export(user.role) && members.length > 0 && <CardSelection formId="selection-cartes" />}
+      {/* Formulaire de sélection : les cases des lignes y sont rattachées via form="…" */}
+      <form id="selection-cartes" action="/gestion/impression/cartes" target="_blank" />
+
       <div className="overflow-hidden rounded-3xl bg-white">
         {members.length === 0 ? (
           <p className="p-10 text-center text-ink/70">Aucun membre ne correspond.</p>
@@ -80,8 +85,11 @@ export default async function MembersPage(props: PageProps<"/gestion/membres">) 
             <tbody className="divide-y divide-navy/5">
               {members.map((m) => (
                 <tr key={m.id} className="relative block hover:bg-mist/60 md:table-row">
-                  <td className="block px-5 pt-4 md:table-cell md:py-3">
-                    <Link href={`/gestion/membres/${m.id}`} className="flex items-center gap-3 after:absolute after:inset-0">
+                  <td className="flex items-center gap-3 px-5 pt-4 md:table-cell md:py-3">
+                    {can.export(user.role) && (
+                      <input type="checkbox" name="id" value={m.id} form="selection-cartes" aria-label={`Sélectionner ${m.prenom} ${m.nom}`} className="relative z-10 mr-3 size-5 shrink-0 accent-navy md:align-middle" />
+                    )}
+                    <Link href={`/gestion/membres/${m.id}`} className="inline-flex items-center gap-3 align-middle after:absolute after:inset-0">
                       {/* eslint-disable-next-line @next/next/no-img-element -- photo protégée */}
                       <img src={photoUrl(m.photoThumb)} alt="" width={44} height={44} loading="lazy" className="size-11 rounded-full object-cover" />
                       <span>

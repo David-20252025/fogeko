@@ -18,3 +18,9 @@ test("plusieurs numéros de la fondation", async () => {
     { label: "+243 896 370 519", href: "tel:+243896370519" },
   ]);
 });
+
+test("chaque commune a des coordonnées dans Kinshasa", async () => {
+  const { COMMUNES_GEO } = await import("../src/lib/communes-geo");
+  assert.equal(Object.keys(COMMUNES_GEO).length, 24);
+  for (const [nom, [lat, lng]] of Object.entries(COMMUNES_GEO)) assert.ok(lat > -4.7 && lat < -3.9 && lng > 15.1 && lng < 16.6, nom);
+});

@@ -5,7 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { logout } from "../actions";
 
-const ROLE_LABEL = { ADMIN: "Administrateur", SECRETAIRE: "Secrétaire", LECTEUR: "Lecteur" };
+const ROLE_LABEL = { SUPERADMIN: "Super administrateur", ADMIN: "Administrateur", SECRETAIRE: "Secrétaire", LECTEUR: "Lecteur" };
 
 export default async function AdminLayout({ children }: LayoutProps<"/gestion">) {
   const user = await requireUser();

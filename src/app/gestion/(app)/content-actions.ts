@@ -3,13 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { FormState } from "@/components/admin/admin-form";
-import { assertRole, EDITORS } from "@/lib/auth";
+import { ADMINS, assertRole, EDITORS } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { slugify } from "@/lib/slug";
 import { removeContentImage, saveContentImage } from "@/lib/storage";
 import { videoEmbed } from "@/lib/video";
 
-const ADMIN = ["ADMIN" as const];
+const ADMIN = ADMINS;
 const s = (f: FormData, k: string, max = 300) => String(f.get(k) ?? "").trim().slice(0, max);
 const int = (f: FormData, k: string) => Math.max(0, Math.min(1_000_000, Math.round(Number(f.get(k)) || 0)));
 const bool = (f: FormData, k: string) => f.get(k) === "on";

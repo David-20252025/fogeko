@@ -70,10 +70,13 @@ export async function assertRole(roles: Role[]) {
   return user;
 }
 
-export const EDITORS: Role[] = ["ADMIN", "SECRETAIRE"];
+export const ADMINS: Role[] = ["SUPERADMIN", "ADMIN"];
+export const EDITORS: Role[] = ["SUPERADMIN", "ADMIN", "SECRETAIRE"];
 export const can = {
-  edit: (r: Role) => r === "ADMIN" || r === "SECRETAIRE",
-  export: (r: Role) => r === "ADMIN" || r === "SECRETAIRE",
-  delete: (r: Role) => r === "ADMIN",
-  users: (r: Role) => r === "ADMIN",
+  edit: (r: Role) => EDITORS.includes(r),
+  export: (r: Role) => EDITORS.includes(r),
+  delete: (r: Role) => ADMINS.includes(r),
+  users: (r: Role) => ADMINS.includes(r),
+  finances: (r: Role) => ADMINS.includes(r),
+  declarerFonds: (r: Role) => r === "SUPERADMIN",
 };

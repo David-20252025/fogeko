@@ -13,10 +13,10 @@ const COMMUNES = [
 ];
 
 async function main() {
-  // Premier compte administrateur, créé une seule fois à partir des variables d'environnement
+  // Premier compte (super administrateur), créé une seule fois à partir des variables d'environnement
   const { ADMIN_EMAIL, ADMIN_PASSWORD } = process.env;
   if (ADMIN_EMAIL && ADMIN_PASSWORD && (await db.user.count()) === 0) {
-    await db.user.create({ data: { email: ADMIN_EMAIL.toLowerCase(), name: "Administrateur", role: "ADMIN", passwordHash: await hashPassword(ADMIN_PASSWORD) } });
+    await db.user.create({ data: { email: ADMIN_EMAIL.toLowerCase(), name: "Super administrateur", role: "SUPERADMIN", passwordHash: await hashPassword(ADMIN_PASSWORD) } });
     console.log(`Compte administrateur créé : ${ADMIN_EMAIL}`);
   }
 

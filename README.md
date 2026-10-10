@@ -83,9 +83,24 @@ tests/                      Tests automatiques
 
 | Rôle | Peut |
 |---|---|
-| **Administrateur** | Tout, y compris gérer les comptes et supprimer |
-| **Secrétaire** | Gérer membres (valider, modifier, exporter, cartes) et contenus, sans rien supprimer |
+| **Super administrateur** | Tout, y compris **déclarer le fonds mensuel**, supprimer un don et gérer les autres super administrateurs |
+| **Administrateur** | Tout (comptes, suppressions, enregistrement des dons) sauf le fonds mensuel ; ne peut ni créer ni modifier un super administrateur |
+| **Secrétaire** | Gérer membres (valider, modifier, exporter, cartes) et contenus, sans rien supprimer, sans accès aux finances |
 | **Lecteur** | Consulter le tableau de bord et les fiches, sans modification ni export |
+
+Le premier compte créé au déploiement (`ADMIN_EMAIL`) est super administrateur ; il doit toujours en rester au moins un.
+
+### Cartes de membre
+
+Dans **Membres**, cochez les membres puis « Cartes · format CR80 » (une carte par page, 85,6 × 54 mm, pour imprimante
+à cartes ou PDF) ou « Cartes · planche A4 » (10 cartes à découper). Pour un PDF : fenêtre d'impression →
+« Enregistrer au format PDF », marges **Aucune**, échelle **100 %**.
+
+### Finances
+
+**Finances** (administrateurs) : dons reçus (date, montant, devise USD/CDF, moyen, donateur ou anonyme, référence) et
+fonds mensuel déclaré par un super administrateur (un par mois et par devise, une nouvelle déclaration remplace la
+précédente). Résumé du mois et historique sur 12 mois ; les devises ne sont jamais additionnées entre elles.
 
 ### Sécurité
 
@@ -129,4 +144,4 @@ aucun membre ni article fictif n'est créé.
 - Les formulaires nécessitent JavaScript.
 - Les boutons rouges utilisent `#D01D37` (au lieu du rouge du logo `#EC2A45`) pour que le texte blanc reste lisible (contraste ≥ 4,5:1).
   Pour revenir au rouge exact : remplacer `bg-rouge-600` par `bg-rouge` dans `src/`.
-- Hors périmètre V1 : module finances, emails professionnels.
+- Hors périmètre : modification d'un don (le supprimer puis le ressaisir), export Excel des finances, emails professionnels.

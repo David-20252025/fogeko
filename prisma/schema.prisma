@@ -8,6 +8,7 @@ datasource db {
 }
 
 enum Role {
+  SUPERADMIN // toutes les permissions + déclaration des fonds mensuels
   ADMIN
   SECRETAIRE
   LECTEUR
@@ -37,14 +38,16 @@ enum TypeMedia {
 }
 
 model User {
-  id             String    @id @default(cuid())
-  email          String    @unique
-  name           String
-  passwordHash   String
-  role           Role      @default(LECTEUR)
-  failedLogins   Int       @default(0)
-  lockedUntil    DateTime?
-  createdAt      DateTime  @default(now())
+  id           String         @id @default(cuid())
+  email        String         @unique
+  name         String
+  passwordHash String
+  role         Role           @default(LECTEUR)
+  failedLogins Int            @default(0)
+  lockedUntil  DateTime?
+  createdAt    DateTime       @default(now())
+  dons         Don[]          @relation("DonsSaisis")
+  fonds        FondsMensuel[] @relation("FondsDeclares")
 }
 
 model Commune {
@@ -87,43 +90,43 @@ model Member {
 
 // Une seule ligne (id = 1) : textes et chiffres modifiables depuis l'admin
 model SiteSettings {
-  id             Int     @id @default(1)
-  heroTitre      String
-  heroSousTitre  String
-  statMembres    Int
-  statCommunes   Int
-  statActions    Int
-  mission        String
-  vision         String
-  valeurs        String
-  fondateurBio   String
-  whatsapp       String
-  telephone      String
-  email          String
-  adresse        String
-  facebook       String?
-  youtube        String?
-  tiktok         String?
-  instagram      String?
+  id            Int     @id @default(1)
+  heroTitre     String
+  heroSousTitre String
+  statMembres   Int
+  statCommunes  Int
+  statActions   Int
+  mission       String
+  vision        String
+  valeurs       String
+  fondateurBio  String
+  whatsapp      String
+  telephone     String
+  email         String
+  adresse       String
+  facebook      String?
+  youtube       String?
+  tiktok        String?
+  instagram     String?
 }
 
 model TimelineEvent {
-  id     Int    @id @default(autoincrement())
-  annee  String
-  titre  String
-  texte  String
-  ordre  Int    @default(0)
+  id    Int    @id @default(autoincrement())
+  annee String
+  titre String
+  texte String
+  ordre Int    @default(0)
 }
 
 model Action {
-  id       Int     @id @default(autoincrement())
-  titre    String
-  slug     String  @unique
-  resume   String
-  contenu  String
-  image    String
-  ordre    Int     @default(0)
-  publiee  Boolean @default(true)
+  id      Int     @id @default(autoincrement())
+  titre   String
+  slug    String  @unique
+  resume  String
+  contenu String
+  image   String
+  ordre   Int     @default(0)
+  publiee Boolean @default(true)
 }
 
 model NewsCategory {
@@ -183,4 +186,48 @@ model Dirigeant {
   createdAt DateTime @default(now())
 
   @@index([publie, ordre])
+}
+
+enum Devise {
+  USD
+  CDF
+}
+
+enum MoyenPaiement {
+  ESPECES
+  MOBILE_MONEY
+  VIREMENT
+  AUTRE
+}
+
+// Don reçu par la fondation (saisi par un administrateur)
+model Don {
+  id         Int           @id @default(autoincrement())
+  date       DateTime
+  montant    Decimal       @db.Decimal(14, 2)
+  devise     Devise
+  donateur   String? // vide = anonyme
+  telephone  String?
+  moyen      MoyenPaiement
+  reference  String? // n° de transaction mobile money, reçu…
+  note       String?
+  saisiPar   User          @relation("DonsSaisis", fields: [saisiParId], references: [id])
+  saisiParId String
+  createdAt  DateTime      @default(now())
+
+  @@index([date])
+}
+
+// Fonds déclaré chaque mois par un super administrateur (un par mois et par devise)
+model FondsMensuel {
+  id           Int      @id @default(autoincrement())
+  mois         DateTime @db.Date // 1er jour du mois
+  montant      Decimal  @db.Decimal(14, 2)
+  devise       Devise
+  note         String?
+  declarePar   User     @relation("FondsDeclares", fields: [declareParId], references: [id])
+  declareParId String
+  updatedAt    DateTime @updatedAt
+
+  @@unique([mois, devise])
 }

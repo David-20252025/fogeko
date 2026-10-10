@@ -13,19 +13,21 @@ const I = {
   text: "M4 6h16M4 12h10M4 18h16",
   mail: "M3 5h18v14H3zM3 7l9 6 9-6",
   shield: "M12 3 4 6v6c0 4.5 3.4 8.2 8 9 4.6-.8 8-4.5 8-9V6z",
+  cash: "M3 6h18v12H3zM3 10h18M7 15h3",
   team: "M12 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM6 20a6 6 0 0 1 12 0M5 9.5a2 2 0 1 0 0-4M19 9.5a2 2 0 1 1 0-4M2 17a3.5 3.5 0 0 1 3-3.4M22 17a3.5 3.5 0 0 0-3-3.4",
 };
 
 const LINKS: { href: string; label: string; icon: keyof typeof I; roles?: Role[] }[] = [
   { href: "/gestion", label: "Tableau de bord", icon: "dash" },
   { href: "/gestion/membres", label: "Membres", icon: "users" },
-  { href: "/gestion/actualites", label: "Actualités", icon: "news", roles: ["ADMIN", "SECRETAIRE"] },
-  { href: "/gestion/galerie", label: "Galerie", icon: "image", roles: ["ADMIN", "SECRETAIRE"] },
-  { href: "/gestion/actions", label: "Actions", icon: "heart", roles: ["ADMIN", "SECRETAIRE"] },
-  { href: "/gestion/administration", label: "Administration", icon: "team", roles: ["ADMIN", "SECRETAIRE"] },
-  { href: "/gestion/site", label: "Textes du site", icon: "text", roles: ["ADMIN", "SECRETAIRE"] },
-  { href: "/gestion/messages", label: "Messages", icon: "mail", roles: ["ADMIN", "SECRETAIRE"] },
-  { href: "/gestion/utilisateurs", label: "Utilisateurs", icon: "shield", roles: ["ADMIN"] },
+  { href: "/gestion/actualites", label: "Actualités", icon: "news", roles: ["SUPERADMIN", "ADMIN", "SECRETAIRE"] },
+  { href: "/gestion/galerie", label: "Galerie", icon: "image", roles: ["SUPERADMIN", "ADMIN", "SECRETAIRE"] },
+  { href: "/gestion/actions", label: "Actions", icon: "heart", roles: ["SUPERADMIN", "ADMIN", "SECRETAIRE"] },
+  { href: "/gestion/finances", label: "Finances", icon: "cash", roles: ["SUPERADMIN", "ADMIN"] },
+  { href: "/gestion/administration", label: "Administration", icon: "team", roles: ["SUPERADMIN", "ADMIN", "SECRETAIRE"] },
+  { href: "/gestion/site", label: "Textes du site", icon: "text", roles: ["SUPERADMIN", "ADMIN", "SECRETAIRE"] },
+  { href: "/gestion/messages", label: "Messages", icon: "mail", roles: ["SUPERADMIN", "ADMIN", "SECRETAIRE"] },
+  { href: "/gestion/utilisateurs", label: "Utilisateurs", icon: "shield", roles: ["SUPERADMIN", "ADMIN"] },
 ];
 
 export function AdminNav({ role, unread }: { role: Role; unread: number }) {

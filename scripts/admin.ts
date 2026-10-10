@@ -1,4 +1,4 @@
-// Crée un administrateur, ou réinitialise son mot de passe et le débloque s'il existe déjà.
+// Crée un super administrateur, ou réinitialise son mot de passe et le débloque s'il existe déjà.
 // Usage : ADMIN_EMAIL=… ADMIN_PASSWORD=… npm run admin
 import "dotenv/config";
 import { db } from "../src/lib/db";
@@ -13,10 +13,10 @@ async function main() {
   const passwordHash = await hashPassword(password);
   const u = await db.user.upsert({
     where: { email },
-    update: { role: "ADMIN", passwordHash, failedLogins: 0, lockedUntil: null },
-    create: { email, name: "Administrateur", role: "ADMIN", passwordHash },
+    update: { role: "SUPERADMIN", passwordHash, failedLogins: 0, lockedUntil: null },
+    create: { email, name: "Super administrateur", role: "SUPERADMIN", passwordHash },
   });
-  console.log(`Administrateur prêt : ${u.email}`);
+  console.log(`Super administrateur prêt : ${u.email}`);
 }
 
 main().then(() => db.$disconnect()).catch(async (e) => { console.error(e.message); await db.$disconnect(); process.exit(1); });

@@ -6,7 +6,7 @@ const CSP = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://i.ytimg.com",
+  "img-src 'self' data: blob: https://i.ytimg.com https://tile.openstreetmap.org", // tuiles de la carte du tableau de bord
   "font-src 'self'",
   "connect-src 'self'",
   "frame-src https://www.youtube-nocookie.com https://www.facebook.com https://www.openstreetmap.org",

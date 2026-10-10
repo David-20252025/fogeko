@@ -2,7 +2,9 @@ import Link from "next/link";
 import { BarList, Columns } from "@/components/admin/charts";
 import { requireUser } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { MembersMap, type MapPoint } from "@/components/admin/members-map";
 import { StatutBadge } from "@/components/admin/statut-badge";
+import { COMMUNES_GEO } from "@/lib/communes-geo";
 import { CATEGORIES, formatNumero, photoUrl } from "@/lib/members";
 
 const DAY = 86_400_000;
@@ -13,7 +15,7 @@ async function load() {
   const now = Date.now();
   const since = (d: number) => new Date(now - d * DAY);
 
-  const [total, actifs, attente, week, prevWeek, byCat, byCommune, communes, recent, weekly] = await Promise.all([
+  const [total, actifs, attente, week, prevWeek, byCat, byCommune, communes, recent, weekly, byQuartier] = await Promise.all([
     db.member.count(),
     db.member.count({ where: { statut: "ACTIF" } }),
     db.member.count({ where: { statut: "EN_ATTENTE" } }),
@@ -27,6 +29,7 @@ async function load() {
       SELECT date_trunc('week', "dateAdhesion") AS semaine, count(*) AS n FROM "Member"
       WHERE "dateAdhesion" >= date_trunc('week', now()) - make_interval(weeks => ${WEEKS - 1}::int)
       GROUP BY 1`,
+    db.member.groupBy({ by: ["communeId", "quartier"], _count: true, orderBy: { _count: { quartier: "desc" } } }),
   ]);
 
   const communeName = new Map(communes.map((c) => [c.id, c.nom]));
@@ -40,12 +43,18 @@ async function load() {
     const label = d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
     return { label, title: `Semaine du ${label}`, value: Number(n?.n ?? 0) };
   });
-  return { total, actifs, attente, week, delta: week - prevWeek, byCat, byCommune, communeName, recent, weeks };
+  const points: MapPoint[] = byCommune.flatMap((c) => {
+    const nom = communeName.get(c.communeId) ?? "";
+    const geo = COMMUNES_GEO[nom];
+    const quartiers = byQuartier.filter((q) => q.communeId === c.communeId).slice(0, 5).map((q) => ({ nom: q.quartier, count: q._count }));
+    return geo ? [{ communeId: c.communeId, nom, lat: geo[0], lng: geo[1], count: c._count, quartiers }] : [];
+  });
+  return { total, actifs, attente, week, delta: week - prevWeek, byCat, byCommune, communeName, recent, weeks, points };
 }
 
 export default async function Dashboard() {
   await requireUser();
-  const { total, actifs, attente, week, delta, byCat, byCommune, communeName, recent, weeks } = await load();
+  const { total, actifs, attente, week, delta, byCat, byCommune, communeName, recent, weeks, points } = await load();
 
   const cards = [
     { label: "Total des membres", value: total, sub: `${actifs} actifs`, dark: true },
@@ -86,6 +95,16 @@ export default async function Dashboard() {
           <BarList rows={(Object.keys(CATEGORIES) as (keyof typeof CATEGORIES)[]).map((k) => ({ label: CATEGORIES[k], value: byCat.find((c) => c.categorie === k)?._count ?? 0 }))} />
         </section>
       </div>
+
+      <section className="rounded-3xl bg-white p-6">
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <h2 className="text-xl font-bold text-navy">Où sont nos membres</h2>
+            <p className="text-sm text-ink/70">Un cercle par commune (centre approximatif) · cliquez pour voir les quartiers</p>
+          </div>
+        </div>
+        {points.length ? <MembersMap points={points} /> : <p className="text-ink/65">Aucun membre pour l&apos;instant.</p>}
+      </section>
 
       <div className="grid gap-4 xl:grid-cols-[1fr_1.4fr]">
         <section className="rounded-3xl bg-white p-6">

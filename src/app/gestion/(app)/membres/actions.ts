@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Prisma } from "@/generated/prisma/client";
-import { assertRole, EDITORS } from "@/lib/auth";
+import { ADMINS, assertRole, EDITORS } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { parseMemberFields } from "@/lib/member-validate";
 import { STATUTS, type StatutKey } from "@/lib/members";
@@ -36,7 +36,7 @@ export async function setStatut(id: string, statut: StatutKey) {
 }
 
 export async function deleteMember(id: string) {
-  await assertRole(["ADMIN"]);
+  await assertRole(ADMINS);
   const m = await db.member.delete({ where: { id } });
   await removeFiles(m.photo, m.photoThumb);
   redirect("/gestion/membres");
