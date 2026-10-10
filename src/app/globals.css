@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+@theme {
+  --color-navy: #0a1360;
+  --color-navy-700: #121c78;
+  --color-navy-900: #060b3d;
+  --color-rouge: #ec2a45;
+  --color-rouge-600: #d01d37; /* fond des boutons à texte blanc : contraste 5,4:1 (le rouge du logo donne 4,2:1) */
+  --color-rouge-700: #b3172e;
+  --color-ocre: #c9892b;
+  --color-ocre-700: #9a6414; /* ocre lisible sur fond clair (contraste 4,7:1) */
+  --color-orange: #e8761e;
+  --color-ink: #14173a;
+  --color-mist: #f6f7fb;
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; /* police du téléphone : 0 Ko à télécharger */
+  --font-slab: var(--font-zilla), Georgia, serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: #fff;
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 1.0625rem;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, .font-slab {
+  font-family: var(--font-slab);
+  letter-spacing: -0.01em;
+}
+
+/* Signature : bande géométrique inspirée des motifs kuba (rouge, ocre, marine) */
+.kuba {
+  height: 14px;
+  background-color: var(--color-ocre);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='14' viewBox='0 0 56 14'%3E%3Cpath d='M0 7 7 0l7 7-7 7z' fill='%230A1360'/%3E%3Cpath d='M7 4l3 3-3 3-3-3z' fill='%23EC2A45'/%3E%3Cpath d='M16 0h10v4h-6v6h6v4H16z' fill='%230A1360'/%3E%3Cpath d='M30 0h10v10h-6V4h-4zM30 14v-4h4v4z' fill='%230A1360'/%3E%3Crect x='44' y='0' width='4' height='14' fill='%23EC2A45'/%3E%3Crect x='50' y='5' width='4' height='4' fill='%230A1360'/%3E%3C/svg%3E");
+  background-size: 56px 14px;
+}
+.kuba-thin {
+  height: 8px;
+  background-size: 32px 8px;
+}
+
+/* Une seule animation d'entrée (héros) + le vol discret de la colombe */
+@keyframes rise {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes fly {
+  0%, 100% { transform: translate(0, 0) rotate(-2deg); }
+  50% { transform: translate(14px, -18px) rotate(2deg); }
+}
+.anim-rise { animation: rise 0.9s cubic-bezier(.2,.7,.2,1) both; }
+.anim-fly { animation: fly 9s ease-in-out infinite; }
+
+/* Apparition au défilement (chiffres et cartes d'action uniquement) */
+.reveal { opacity: 0; transform: translateY(20px); transition: opacity .7s ease, transform .7s ease; }
+.reveal.is-visible { opacity: 1; transform: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .anim-rise, .anim-fly { animation: none; }
+  .reveal { opacity: 1; transform: none; transition: none; }
+}

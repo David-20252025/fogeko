@@ -1,0 +1,186 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  SECRETAIRE
+  LECTEUR
+}
+
+enum Sexe {
+  F
+  M
+}
+
+enum Categorie {
+  MAMAN
+  PAPA
+  JEUNE
+  PASTEUR
+}
+
+enum StatutMembre {
+  EN_ATTENTE
+  ACTIF
+  SUSPENDU
+}
+
+enum TypeMedia {
+  PHOTO
+  VIDEO
+}
+
+model User {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  name           String
+  passwordHash   String
+  role           Role      @default(LECTEUR)
+  failedLogins   Int       @default(0)
+  lockedUntil    DateTime?
+  createdAt      DateTime  @default(now())
+}
+
+model Commune {
+  id      Int      @id @default(autoincrement())
+  nom     String   @unique
+  membres Member[]
+}
+
+model Member {
+  id               String       @id @default(cuid())
+  numero           Int          @unique @default(autoincrement()) // affiché FOGEKO-0001
+  nom              String
+  postNom          String?
+  prenom           String
+  sexe             Sexe
+  dateNaissance    DateTime?
+  telephone        String       @unique
+  email            String?
+  commune          Commune      @relation(fields: [communeId], references: [id])
+  communeId        Int
+  quartier         String
+  profession       String?
+  categorie        Categorie
+  egliseMinistere  String?
+  photo            String // chemin relatif dans UPLOAD_DIR (400x400 webp)
+  photoThumb       String // miniature 96x96 webp
+  dateAdhesion     DateTime     @default(now())
+  statut           StatutMembre @default(EN_ATTENTE)
+  consentement     Boolean
+  consentementDate DateTime     @default(now())
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@index([nom, prenom])
+  @@index([categorie])
+  @@index([statut])
+  @@index([communeId]) // filtres et graphique par commune
+  @@index([dateAdhesion]) // nouvelles adhésions, graphique par semaine
+}
+
+// Une seule ligne (id = 1) : textes et chiffres modifiables depuis l'admin
+model SiteSettings {
+  id             Int     @id @default(1)
+  heroTitre      String
+  heroSousTitre  String
+  statMembres    Int
+  statCommunes   Int
+  statActions    Int
+  mission        String
+  vision         String
+  valeurs        String
+  fondateurBio   String
+  whatsapp       String
+  telephone      String
+  email          String
+  adresse        String
+  facebook       String?
+  youtube        String?
+  tiktok         String?
+  instagram      String?
+}
+
+model TimelineEvent {
+  id     Int    @id @default(autoincrement())
+  annee  String
+  titre  String
+  texte  String
+  ordre  Int    @default(0)
+}
+
+model Action {
+  id       Int     @id @default(autoincrement())
+  titre    String
+  slug     String  @unique
+  resume   String
+  contenu  String
+  image    String
+  ordre    Int     @default(0)
+  publiee  Boolean @default(true)
+}
+
+model NewsCategory {
+  id       Int       @id @default(autoincrement())
+  nom      String    @unique
+  slug     String    @unique
+  visible  Boolean   @default(true)
+  articles Article[]
+}
+
+model Article {
+  id          Int          @id @default(autoincrement())
+  titre       String
+  slug        String       @unique
+  categorie   NewsCategory @relation(fields: [categorieId], references: [id])
+  categorieId Int
+  image       String
+  extrait     String
+  contenu     String
+  publieLe    DateTime     @default(now())
+  publie      Boolean      @default(false)
+
+  @@index([publie, publieLe])
+  @@index([categorieId])
+}
+
+model GalleryItem {
+  id       Int       @id @default(autoincrement())
+  type     TypeMedia
+  titre    String
+  image    String? // pour PHOTO
+  videoUrl String? // YouTube/Facebook pour VIDEO
+  date     DateTime  @default(now())
+  ordre    Int       @default(0)
+}
+
+model ContactMessage {
+  id        Int      @id @default(autoincrement())
+  nom       String
+  telephone String?
+  email     String?
+  message   String
+  lu        Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+// Membres de l'administration de la fondation, publiés sur la page /administration
+model Dirigeant {
+  id        Int      @id @default(autoincrement())
+  nom       String
+  postNom   String?
+  prenom    String
+  poste     String // ex. Coordonnateur, Secrétaire général, Trésorière…
+  photo     String // URL publique /media/… (ou /img/…)
+  ordre     Int      @default(0)
+  publie    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([publie, ordre])
+}

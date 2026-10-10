@@ -1,0 +1,14 @@
+# Ne jamais envoyer dans l'image : secrets, photos des membres, base locale
+.env
+.env.*
+!.env.example
+uploads
+.pgdata
+node_modules
+.next
+.git
+.claude
+apercus
+tests
+*.md
+!README.md

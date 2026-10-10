@@ -1,0 +1,6 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "fogeko", "runtimeExecutable": "npm", "runtimeArgs": ["run", "dev"], "port": 3000, "autoPort": true, "env": { "NEXT_TELEMETRY_DISABLED": "1" } }
+  ]
+}
