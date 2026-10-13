@@ -17,7 +17,7 @@ const CAT_TEXT: Record<CategorieKey, string> = {
 };
 
 // Recadrage carré 800×800 en JPEG, fait dans le navigateur : envoi léger même en réseau lent
-async function cropToBlob(src: string, area: Area): Promise<Blob> {
+export async function cropToBlob(src: string, area: Area): Promise<Blob> {
   const img = new Image();
   img.src = src;
   await img.decode();
