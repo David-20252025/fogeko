@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { moisDe, sommeParDevise, suiviBudgets } from "@/lib/finance-calc";
 import { CATEGORIES_DEPENSE, DEVISES, formatMontant, moisLabel, type DeviseKey } from "@/lib/money";
 import { addDepense, setBudget } from "../actions";
+import { ARCHIVE_MAX } from "@/lib/archive-file";
 
 const DEV = Object.keys(DEVISES) as DeviseKey[];
 const CATS = Object.keys(CATEGORIES_DEPENSE) as (keyof typeof CATEGORIES_DEPENSE)[];
@@ -51,7 +52,7 @@ export default async function DepensesPage(props: PageProps<"/gestion/finances/d
               <Text name="description" label="Description" required />
             </div>
             <div>
-              <label htmlFor="preuve" className={admLabel}>Justificatif (photo ou PDF, 10 Mo max)</label>
+              <label htmlFor="preuve" className={admLabel}>Justificatif (photo ou PDF, {ARCHIVE_MAX / 1024 / 1024} Mo max)</label>
               <input id="preuve" type="file" name="preuve" accept="application/pdf,image/jpeg,image/png,image/webp" className="w-full min-w-0 text-sm file:mr-3 file:rounded-full file:border-0 file:bg-mist file:px-4 file:py-2 file:font-semibold file:text-navy sm:w-auto" />
             </div>
           </AdminForm>

@@ -48,3 +48,12 @@ next-env.d.ts
 
 # captures de travail (interface de gestion) : ne pas publier
 /apercus
+
+# Fichiers personnels / système (sans rapport avec le projet)
+*.lnk
+*.docx
+*.xlsx
+*.tmp
+~$*
+desktop.ini
+DATABASE_URL=*

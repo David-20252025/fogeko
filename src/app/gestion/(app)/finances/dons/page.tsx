@@ -9,6 +9,7 @@ import { moisDe, sommeParDevise } from "@/lib/finance-calc";
 import { formatNumero } from "@/lib/members";
 import { DEVISES, formatMontant, moisLabel, MOYENS, TYPES_DONATEUR, type DeviseKey } from "@/lib/money";
 import { addDon } from "../actions";
+import { ARCHIVE_MAX } from "@/lib/archive-file";
 
 const DEV = Object.keys(DEVISES) as DeviseKey[];
 
@@ -57,7 +58,7 @@ export default async function DonsPage(props: PageProps<"/gestion/finances/dons"
               <Text name="motif" label="Motif" placeholder="ex. soutien action sociale" />
             </div>
             <div>
-              <label htmlFor="preuve" className={admLabel}>Preuve (photo ou PDF, 10 Mo max, facultatif)</label>
+              <label htmlFor="preuve" className={admLabel}>Preuve (photo ou PDF, {ARCHIVE_MAX / 1024 / 1024} Mo max, facultatif)</label>
               <input id="preuve" type="file" name="preuve" accept="application/pdf,image/jpeg,image/png,image/webp" className="w-full min-w-0 text-sm file:mr-3 file:rounded-full file:border-0 file:bg-mist file:px-4 file:py-2 file:font-semibold file:text-navy sm:w-auto" />
             </div>
             <p className="text-xs text-ink/70">Un numéro de reçu (REC-année-0001) est attribué automatiquement ; le reçu PDF sera disponible avec le module Rapports.</p>

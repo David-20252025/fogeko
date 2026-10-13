@@ -9,7 +9,7 @@ import { admInput, admLabel } from "./fields";
 type Item = { file: File; titre: string; etat: "attente" | "envoi" | "ok" | "erreur"; message?: string };
 const ACCEPT = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
 
-/** Import multiple par glisser-déposer : les fichiers partent un par un (chacun ≤ 10 Mo), avec un état par fichier. */
+/** Import multiple par glisser-déposer : les fichiers partent un par un (chacun ≤ ARCHIVE_MAX), avec un état par fichier. */
 export function ArchiveUploader() {
   const [items, setItems] = useState<Item[]>([]);
   const [survol, setSurvol] = useState(false);
@@ -23,7 +23,7 @@ export function ArchiveUploader() {
       ...prev,
       ...[...files].map((file): Item => {
         const titre = file.name.replace(/\.[^.]+$/, "");
-        if (file.size > ARCHIVE_MAX) return { file, titre, etat: "erreur", message: "Plus de 10 Mo" };
+        if (file.size > ARCHIVE_MAX) return { file, titre, etat: "erreur", message: `Plus de ${ARCHIVE_MAX / 1024 / 1024} Mo` };
         if (!ACCEPT.includes(file.type)) return { file, titre, etat: "erreur", message: "Ni PDF ni image" };
         return { file, titre, etat: "attente" };
       }),
@@ -57,7 +57,7 @@ export function ArchiveUploader() {
         className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed p-8 text-center transition ${survol ? "border-navy bg-navy/5" : "border-navy/25 bg-mist hover:border-navy"}`}
       >
         <span className="font-semibold text-navy">Glissez-déposez vos documents ici ou cliquez pour choisir</span>
-        <span className="text-sm text-ink/70">PDF, JPG, PNG ou WEBP · 10 Mo maximum par fichier · plusieurs fichiers possibles</span>
+        <span className="text-sm text-ink/70">PDF, JPG, PNG ou WEBP · {ARCHIVE_MAX / 1024 / 1024} Mo maximum par fichier · plusieurs fichiers possibles</span>
         <input type="file" multiple accept={ACCEPT.join(",")} className="sr-only" onChange={(e) => { ajouter(e.target.files); e.target.value = ""; }} />
       </label>
 
