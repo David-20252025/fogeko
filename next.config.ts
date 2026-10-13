@@ -20,9 +20,9 @@ const nextConfig: NextConfig = {
   output: "standalone", // image Docker légère pour Dokploy
   // Les photos des membres et les sources ne doivent jamais être copiées dans le build
   outputFileTracingExcludes: { "*": ["uploads/**", "src/**", ".pgdata/**", "apercus/**"] },
-  // Polices et logo du rapport PDF, lus sur le disque (non détectés ; sur Vercel, public/ n'est pas inclus dans les fonctions)
-  outputFileTracingIncludes: { "/gestion/**": ["./node_modules/pdfmake/fonts/Roboto/*.ttf", "./public/img/logo.png"] },
-  // Fichiers envoyés : 4 Mo max (ARCHIVE_MAX, limite Vercel) ; l'adhésion publique reste limitée à 900 Ko dans son action
+  // Polices du rapport PDF, lues sur le disque par pdfmake (non détectées automatiquement)
+  outputFileTracingIncludes: { "/gestion/**": ["./node_modules/pdfmake/fonts/Roboto/*.ttf"] },
+  // Photos envoyées depuis l'admin (12 Mo max, vérifié côté serveur) ; l'adhésion publique reste limitée à 900 Ko dans son action
   experimental: { serverActions: { bodySizeLimit: "13mb" }, authInterrupts: true }, // authInterrupts : forbidden() → page 403
   // Images optimisées gardées 30 jours (les photos envoyées ont des noms uniques : jamais de version périmée)
   images: { qualities: [60, 75], minimumCacheTTL: 2_592_000 },

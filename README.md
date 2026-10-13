@@ -4,10 +4,7 @@ Site public (accueil, à propos, administration, actions, actualités, galerie, 
 (`/gestion` : membres, tableau de bord, exports, cartes de membre, contenus, utilisateurs).
 Connexion : **`/connexion`** (ou lien « Connexion » en bas de chaque page).
 
-**Technique** : Next.js 16 · Prisma 7 · PostgreSQL · Tailwind CSS 4 · Vercel (fichiers dans Vercel Blob) ou Docker (Dokploy).
-
-**Mise en ligne sur Vercel** : suivre **[DEPLOIEMENT_VERCEL.md](DEPLOIEMENT_VERCEL.md)** (base Neon, stockage Vercel Blob,
-variables, domaine). Fichiers envoyés limités à 4 Mo (limite Vercel).
+**Technique** : Next.js 16 · Prisma 7 · PostgreSQL · Tailwind CSS 4 · Docker (Dokploy).
 
 ---
 

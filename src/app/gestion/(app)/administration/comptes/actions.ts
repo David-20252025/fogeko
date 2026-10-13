@@ -10,7 +10,6 @@ import { db } from "@/lib/db";
 import { passwordProblem } from "@/lib/password";
 import { computePerms, overridesFrom, parseGrid } from "@/lib/permissions";
 import { removeFiles, saveMemberPhoto } from "@/lib/storage";
-import { ARCHIVE_MAX } from "@/lib/archive-file";
 
 const s = (f: FormData, k: string) => String(f.get(k) ?? "").trim().slice(0, 160);
 const otherSuperAdmins = (id: string) => db.user.count({ where: { role: { superAdmin: true }, id: { not: id } } });
@@ -32,7 +31,7 @@ export async function saveAccount(id: string | null, _: FormState, f: FormData):
   }
   const hasPhoto = photo instanceof File && photo.size > 0;
   if (!old && !hasPhoto) return { error: "La photo de profil est obligatoire." };
-  if (hasPhoto && photo.size > ARCHIVE_MAX) return { error: `Photo trop lourde (${ARCHIVE_MAX / 1024 / 1024} Mo maximum).` };
+  if (hasPhoto && photo.size > 12 * 1024 * 1024) return { error: "Photo trop lourde (12 Mo maximum)." };
   if (await db.user.findFirst({ where: { email, ...(id && { id: { not: id } }) } })) return { error: "Un compte existe déjà avec cet email." };
   if (old && old.id === me.id && role.id !== old.roleId) return { error: "Vous ne pouvez pas changer votre propre rôle." };
   if (old?.role.superAdmin && !role.superAdmin && (await otherSuperAdmins(old.id)) === 0) return { error: "Il doit rester au moins un super admin." };

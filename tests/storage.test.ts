@@ -4,9 +4,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
 
-// Stockage sur disque (local, Dokploy) : sans BLOB_READ_WRITE_TOKEN
+// Stockage sur disque, dans un dossier temporaire
 process.env.UPLOAD_DIR = mkdtempSync(path.join(tmpdir(), "fogeko-"));
-delete process.env.BLOB_READ_WRITE_TOKEN;
 
 test("archive : enregistrée, relue à l'identique, puis supprimée", async () => {
   const { readArchiveFile, removeFiles, saveArchiveFile } = await import("../src/lib/storage");
@@ -22,7 +21,7 @@ test("archive : enregistrée, relue à l'identique, puis supprimée", async () =
 test("fichiers trop lourds ou hors du dossier refusés", async () => {
   const { readArchiveFile, readUpload, saveArchiveFile } = await import("../src/lib/storage");
   const { ARCHIVE_MAX } = await import("../src/lib/archive-file");
-  await assert.rejects(saveArchiveFile(new File([new Uint8Array(ARCHIVE_MAX + 1)], "gros.pdf")), /dépasse 4 Mo/);
+  await assert.rejects(saveArchiveFile(new File([new Uint8Array(ARCHIVE_MAX + 1)], "gros.pdf")), /dépasse 10 Mo/);
   assert.equal(await readUpload("membres", ["..", "..", "secret.webp"]), null);
   assert.equal(await readArchiveFile("../../.env"), null);
 });

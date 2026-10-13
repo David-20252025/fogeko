@@ -1,6 +1,5 @@
 // Contrôles purs des fichiers d'archive (testés) : vrai type d'après le contenu, nom nettoyé
-// 4 Mo : Vercel refuse les requêtes de plus de 4,5 Mo (photos, archives, justificatifs)
-export const ARCHIVE_MAX = 4 * 1024 * 1024;
+export const ARCHIVE_MAX = 10 * 1024 * 1024; // 10 Mo par fichier
 
 export const CATEGORIES_ARCHIVE = {
   ADMINISTRATIF: "Administratif", FINANCIER: "Financier", JURIDIQUE: "Juridique", EVENEMENT: "Événement", AUTRE: "Autre",

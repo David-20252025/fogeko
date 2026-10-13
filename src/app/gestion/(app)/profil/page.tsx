@@ -8,7 +8,6 @@ import { photoUrl } from "@/lib/members";
 import { passwordProblem } from "@/lib/password";
 import { saveMemberPhoto } from "@/lib/storage";
 import { revalidatePath } from "next/cache";
-import { ARCHIVE_MAX } from "@/lib/archive-file";
 
 // Chacun gère sa propre photo (obligatoire) et son mot de passe
 async function saveProfil(_: FormState, f: FormData): Promise<FormState> {
@@ -22,7 +21,7 @@ async function saveProfil(_: FormState, f: FormData): Promise<FormState> {
   if (!hasPhoto && !me.photo && !nouveau) return { error: "Choisissez une photo." };
   const data: { photo?: string; passwordHash?: string } = {};
   if (hasPhoto) {
-    if (photo.size > ARCHIVE_MAX) return { error: `Photo trop lourde (${ARCHIVE_MAX / 1024 / 1024} Mo maximum).` };
+    if (photo.size > 12 * 1024 * 1024) return { error: "Photo trop lourde (12 Mo maximum)." };
     try {
       data.photo = (await saveMemberPhoto(Buffer.from(await photo.arrayBuffer()), `compte-${me.id}`)).photo;
     } catch {
