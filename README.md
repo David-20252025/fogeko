@@ -168,7 +168,6 @@ aucun membre ni article fictif n'est créé.
 
 - La catégorie d'actualités **Politique** existe mais est masquée : ses articles ne s'affichent pas tant qu'elle n'est pas rendue visible.
 - L'export PDF passe par l'impression du navigateur (« Enregistrer au format PDF »), y compris sur Android.
-- La photo d'un membre ne peut pas encore être remplacée depuis la gestion (supprimer puis réinscrire).
 - Les formulaires nécessitent JavaScript.
 - Les boutons rouges utilisent `#D01D37` (au lieu du rouge du logo `#EC2A45`) pour que le texte blanc reste lisible (contraste ≥ 4,5:1).
   Pour revenir au rouge exact : remplacer `bg-rouge-600` par `bg-rouge` dans `src/`.

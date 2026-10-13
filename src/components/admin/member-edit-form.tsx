@@ -51,6 +51,12 @@ export function MemberEditForm({ m, communes, readOnly }: { m: M; communes: { id
         </select>
       </div>
       {cat === "PASTEUR" && <div className="sm:col-span-2"><F ro={readOnly} name="egliseMinistere" label="Église / ministère" value={m.egliseMinistere} required /></div>}
+      {!readOnly && (
+        <div className="sm:col-span-2">
+          <label htmlFor="photo" className={admLabel}>Nouvelle photo (facultatif : remplace la photo actuelle)</label>
+          <input id="photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp,image/heic" className={admInput} />
+        </div>
+      )}
 
       {!readOnly && (
         <div className="flex flex-wrap items-center gap-4 sm:col-span-2">
