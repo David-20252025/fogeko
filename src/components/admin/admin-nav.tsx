@@ -16,15 +16,21 @@ const I: Record<Module, string> = {
   TEXTES: "M4 6h16M4 12h10M4 18h16",
   MESSAGES: "M3 5h18v14H3zM3 7l9 6 9-6",
 };
+const DASHBOARD_ICON = "M4 4h7v9H4zM13 4h7v5h-7zM13 11h7v9h-7zM4 15h7v5H4z";
 const USERS_ICON = "M9 11.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7ZM2.5 20a6.5 6.5 0 0 1 13 0M17 11l2 2 4-4";
 // La gestion des comptes a aussi son entrée « Utilisateurs » (super admin)
 const estComptes = (p: string) => p.startsWith("/gestion/utilisateurs") || p.startsWith("/gestion/administration/comptes");
 
-/** Menu : les 9 modules dans l'ordre imposé, uniquement ceux que le compte peut voir (le tableau de bord s'ouvre par le logo). */
+/** Menu : le tableau de bord, puis les 9 modules dans l'ordre imposé, uniquement ceux que le compte peut voir. */
 export function AdminNav({ visible, unread, utilisateurs = false }: { visible: Module[]; unread: number; utilisateurs?: boolean }) {
   const path = usePathname();
   return (
     <nav aria-label="Gestion" className="flex gap-1 overflow-x-auto lg:flex-col lg:overflow-visible">
+      <Link href="/gestion" aria-current={path === "/gestion" ? "page" : undefined}
+        className={`relative flex shrink-0 items-center gap-3 rounded-xl px-3.5 py-2.5 font-medium transition lg:py-3 ${path === "/gestion" ? "bg-navy text-white" : "text-ink/70 hover:bg-mist hover:text-navy"}`}>
+        <svg viewBox="0 0 24 24" className="size-5 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={DASHBOARD_ICON} /></svg>
+        Tableau de bord
+      </Link>
       {MODULES.filter((m) => visible.includes(m.key)).map((m) => {
         const active = path.startsWith(m.href) && !(m.key === "ADMINISTRATION" && estComptes(path));
         return (
