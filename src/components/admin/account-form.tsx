@@ -6,6 +6,7 @@ import type { Perms } from "@/lib/permissions";
 import { keepOnSubmit } from "@/lib/use-keep-form";
 import { admInput, admLabel } from "./fields";
 import { PermissionGrid } from "./permission-grid";
+import { PhotoCrop } from "./photo-crop";
 
 type RoleOpt = { id: number; nom: string; superAdmin: boolean; perms: Perms };
 type Account = { name: string; email: string; roleId: number; photo: string | null; perms: Perms };
@@ -19,23 +20,13 @@ export function AccountForm({ action, roles, account, photoSrc }: {
   const [state, dispatch, pending] = useActionState(action, {});
   const [roleId, setRoleId] = useState(account?.roleId ?? roles.find((r) => !r.superAdmin)?.id ?? roles[0].id);
   const role = roles.find((r) => r.id === roleId)!;
-  const [preview, setPreview] = useState(photoSrc);
   // Garder les permissions du compte tant que son rôle ne change pas ; sinon repartir de celles du nouveau rôle
   const initial = account && roleId === account.roleId ? account.perms : role.perms;
 
   return (
     <form onSubmit={keepOnSubmit(dispatch)} className="grid gap-5">
-      <div className="grid gap-4 sm:grid-cols-[auto_1fr] sm:items-center">
-        <label className="mx-auto grid size-28 cursor-pointer place-items-center overflow-hidden rounded-full bg-mist ring-4 ring-ocre/40 hover:ring-ocre" title="Choisir la photo">
-          {preview ? (
-            // eslint-disable-next-line @next/next/no-img-element -- aperçu local ou photo protégée
-            <img src={preview} alt="Photo de profil" className="size-full object-cover" />
-          ) : (
-            <span className="px-3 text-center text-sm font-semibold text-navy">Photo obligatoire</span>
-          )}
-          <input type="file" name="photo" accept="image/jpeg,image/png,image/webp" required={!account} className="sr-only"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) setPreview(URL.createObjectURL(f)); }} />
-        </label>
+      <PhotoCrop key={account?.photo} name="photo" label={account ? "Photo de profil (choisir pour la remplacer)" : "Photo de profil (obligatoire)"} required={!account} current={photoSrc} />
+      <div>
         <div className="grid gap-4 sm:grid-cols-2">
           <div><label htmlFor="name" className={admLabel}>Nom complet</label><input id="name" name="name" defaultValue={account?.name} required className={admInput} /></div>
           <div><label htmlFor="email" className={admLabel}>Email</label><input id="email" name="email" type="email" defaultValue={account?.email} required autoComplete="off" className={admInput} /></div>

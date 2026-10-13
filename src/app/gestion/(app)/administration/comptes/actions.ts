@@ -41,7 +41,8 @@ export async function saveAccount(id: string | null, _: FormState, f: FormData):
   if (hasPhoto) {
     try {
       // Rangée avec les photos des membres (dossier privé), préfixe « compte- »
-      photoPath = (await saveMemberPhoto(Buffer.from(await photo.arrayBuffer()), `compte-${userId}`)).photo;
+      // Nouveau nom à chaque envoi (pas d'ancienne photo en cache) ; l'ancienne est supprimée après l'enregistrement
+      photoPath = (await saveMemberPhoto(Buffer.from(await photo.arrayBuffer()), `compte-${userId}-${randomUUID().slice(0, 8)}`)).photo;
     } catch {
       return { error: "Le fichier n'est pas une photo valide (JPG, PNG ou WebP)." };
     }
@@ -58,6 +59,7 @@ export async function saveAccount(id: string | null, _: FormState, f: FormData):
     db.userPermission.deleteMany({ where: { userId } }),
     db.userPermission.createMany({ data: overrides.map((o) => ({ userId, ...o })) }),
   ]);
+  if (old?.photo && old.photo !== photoPath) await removeFiles(old.photo, old.photo.replace(".webp", "-mini.webp"));
   await audit(me.id, old ? "compte.modification" : "compte.creation", "User", userId, {
     email, role: role.nom, permissionsPersonnalisees: overrides.length, motDePasseChange: !!password,
   });
