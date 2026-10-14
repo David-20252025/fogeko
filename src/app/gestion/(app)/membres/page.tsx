@@ -37,7 +37,7 @@ export default async function MembersPage(props: PageProps<"/gestion/membres">) 
           <div className="flex flex-wrap gap-2">
             <a href={`/gestion/membres/export?${qs}`} className="rounded-full bg-navy px-5 py-2.5 font-semibold text-white hover:bg-navy-700">Export Excel</a>
             <Link href={`/gestion/impression/cartes?${qs}`} target="_blank" className="rounded-full border-2 border-navy/15 px-5 py-2.5 font-semibold text-navy hover:border-navy">Cartes (tous les résultats)</Link>
-            <Link href={`/gestion/impression/membres?${qs}`} target="_blank" className="rounded-full border-2 border-navy px-5 py-2.5 font-semibold text-navy hover:bg-navy hover:text-white">Export PDF</Link>
+            <a href={`/gestion/membres/export?${qs}${qs ? "&" : ""}format=pdf`} download className="rounded-full border-2 border-navy px-5 py-2.5 font-semibold text-navy hover:bg-navy hover:text-white">Export PDF</a>
           </div>
         )}
       </div>

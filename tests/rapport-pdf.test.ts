@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
-import { rapportFinancierPdf, RapportError, type LigneRapport } from "../src/lib/rapport-pdf";
+import { listeMembresPdf, rapportFinancierPdf, RapportError, type LigneRapport } from "../src/lib/rapport-pdf";
 
 const d = (s: string) => new Date(`${s}T12:00:00Z`);
 // Données fictives : assez de lignes pour plusieurs pages
@@ -42,4 +42,26 @@ test("adresse manquante : message clair, pas de PDF", async () => {
     rapportFinancierPdf({ titre: "R", periode: "P", generePar: "X", adresse: "  ", lignes: [] }),
     (e) => e instanceof RapportError && /Paramètres/.test(e.message),
   );
+});
+
+test("liste des membres PDF : A4 paysage, en-tête et pied de page sur chaque page, toutes les lignes", async () => {
+  const membres = Array.from({ length: 70 }, (_, i) => ({
+    numero: `FOGEKO-${String(i + 1).padStart(4, "0")}`, nomComplet: `Membre Fictif ${i + 1}`, sexe: "F", telephone: "+243890000000",
+    categorie: "Mamans", commune: "Limete", quartier: "Kingabwa", profession: "Commerçante", adhesion: d("2026-10-01"), statut: "Actif",
+  }));
+  const buf = await listeMembresPdf({ filtres: "Tous les membres", generePar: "Testeur Fictif", adresse: "Avenue fictive 1, Limete", membres });
+  const pdf = await getDocument({ data: new Uint8Array(buf) }).promise;
+  const page1 = await pdf.getPage(1);
+  const [, , w, h] = page1.view;
+  assert.ok(w > h, "paysage");
+  const pages = await texte(buf);
+  assert.ok(pages.length >= 2, `plusieurs pages (${pages.length})`);
+  pages.forEach((p, i) => {
+    assert.match(p, new RegExp(`Page ${i + 1} / ${pages.length}`));
+    assert.match(p, /Liste des membres/);
+    assert.match(p, /Généré par Testeur Fictif/);
+  });
+  const tout = pages.join(" ");
+  assert.match(tout, /70 membre\(s\)/);
+  assert.match(tout, /FOGEKO-0001/); assert.match(tout, /FOGEKO-0070/);
 });

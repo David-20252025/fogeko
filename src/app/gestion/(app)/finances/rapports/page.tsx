@@ -24,7 +24,7 @@ export default async function RapportsPage() {
       {!peut ? (
         <p className="rounded-3xl bg-white p-10 text-center text-ink/70">Votre rôle ne permet pas d&apos;exporter les finances.</p>
       ) : (
-        <form action="/gestion/finances/rapports/fichier" target="_blank" className="grid gap-4 rounded-3xl bg-white p-6 sm:grid-cols-2 lg:grid-cols-3">
+        <form action="/gestion/finances/rapports/fichier" className="grid gap-4 rounded-3xl bg-white p-6 sm:grid-cols-2 lg:grid-cols-3">
           <label className={label}>Du<input type="date" name="du" defaultValue={debutMois} required className={field} /></label>
           <label className={label}>Au<input type="date" name="au" defaultValue={now.toISOString().slice(0, 10)} required className={field} /></label>
           <label className={label}>Type

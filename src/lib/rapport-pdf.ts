@@ -88,27 +88,16 @@ function tableau(titre: string, lignes: LigneRapport[]): Content {
   ];
 }
 
-/** Rapport financier : en-tête, filigrane du logo, pied de page (adresse, Page x / y, généré par) sur chaque page. */
-export async function rapportFinancierPdf(d: RapportData): Promise<Buffer> {
-  if (!d.adresse?.trim()) throw new RapportError("L'adresse de la fondation n'est pas renseignée : complétez-la dans Administration → Paramètres avant de générer un rapport.");
-  init();
-  const img = logo();
-  const valides = d.lignes.filter((l) => !l.annuleLe);
-  const entrees = valides.filter((l) => l.sens === 1), sorties = valides.filter((l) => l.sens === -1);
-  const E = sommeParDevise(entrees), S = sommeParDevise(sorties);
-  const annulees = d.lignes.length - valides.length;
-  const parCategorie = (dev: DeviseKey) => {
-    const m = new Map<string, number>();
-    for (const l of sorties.filter((x) => x.devise === dev)) m.set(l.categorie ?? l.type, (m.get(l.categorie ?? l.type) ?? 0) + Number(l.montant.toString()));
-    return [...m].map(([label, v]) => ({ label, v: Math.round(v * 100) / 100 })).sort((a, b) => b.v - a.v);
-  };
-  const solde = { USD: E.USD - S.USD, CDF: E.CDF - S.CDF };
-  const genereLe = nb(new Date().toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short", timeZone: "Africa/Kinshasa" }));
+type Entete = { titre: string; periode: string; generePar: string; adresse: string; paysage?: boolean };
 
+/** Document FOGEKO : en-tête (logo, titre), filigrane du logo, pied de page (adresse, Page x / y, généré par) sur chaque page. */
+function documentPdf(e: Entete, content: Content[]): Promise<Buffer> {
+  init();
+  const genereLe = nb(new Date().toLocaleString("fr-FR", { dateStyle: "long", timeStyle: "short", timeZone: "Africa/Kinshasa" }));
   const doc: TDocumentDefinitions = {
-    pageSize: "A4", pageMargins: [40, 92, 40, 64],
-    images: { logo: img }, // déclaré une fois, réutilisé sur chaque page
-    info: { title: `${d.titre} — ${d.periode}`, author: "Fondation Gekoko (FOGEKO)", creator: "FOGEKO" },
+    pageSize: "A4", pageOrientation: e.paysage ? "landscape" : "portrait", pageMargins: [40, 92, 40, 64],
+    images: { logo: logo() }, // déclaré une fois, réutilisé sur chaque page
+    info: { title: `${e.titre} — ${e.periode}`, author: "Fondation Gekoko (FOGEKO)", creator: "FOGEKO" },
     defaultStyle: { font: "Roboto", fontSize: 10, color: "#14173A", lineHeight: 1.15 },
     styles: {
       h1: { fontSize: 15, bold: true, color: NAVY },
@@ -119,34 +108,53 @@ export async function rapportFinancierPdf(d: RapportData): Promise<Buffer> {
     },
     // Filigrane : le logo en grand, centré, très léger, sur chaque page
     background: (_page, size) => ({ image: "logo", width: 380, opacity: 0.07, absolutePosition: { x: (size.width - 380) / 2, y: (size.height - 294) / 2 } }),
-    header: () => ({
+    header: (_page, _pages, size) => ({
       margin: [40, 24, 40, 0],
       stack: [
         {
           columns: [
             { image: "logo", width: 62 },
-            { width: "*", margin: [12, 6, 0, 0], stack: [{ text: d.titre, style: "h1" }, { text: d.periode, fontSize: 10, color: GRIS }] },
+            { width: "*", margin: [12, 6, 0, 0], stack: [{ text: e.titre, style: "h1" }, { text: e.periode, fontSize: 10, color: GRIS }] },
             { width: 150, alignment: "right", margin: [0, 8, 0, 0], stack: [{ text: "Fondation Gekoko (FOGEKO)", bold: true, fontSize: 8.5, color: NAVY }, { text: `Généré le ${genereLe}`, style: "petit" }] },
           ],
         },
-        { canvas: [{ type: "line", x1: 0, y1: 6, x2: 515, y2: 6, lineWidth: 1.5, lineColor: ROUGE }] },
+        { canvas: [{ type: "line", x1: 0, y1: 6, x2: size.width - 80, y2: 6, lineWidth: 1.5, lineColor: ROUGE }] },
       ],
     }),
-    footer: (page, pages) => ({
+    footer: (page, pages, size) => ({
       margin: [40, 18, 40, 0],
       stack: [
-        { canvas: [{ type: "line", x1: 0, y1: 0, x2: 515, y2: 0, lineWidth: 0.6, lineColor: NAVY }] },
+        { canvas: [{ type: "line", x1: 0, y1: 0, x2: size.width - 80, y2: 0, lineWidth: 0.6, lineColor: NAVY }] },
         {
           margin: [0, 5, 0, 0], fontSize: 7.5, color: GRIS,
           columns: [
-            { width: "*", text: d.adresse!.replace(/\s*\n\s*/g, " · ") },
+            { width: "*", text: e.adresse.replace(/\s*\n\s*/g, " · ") },
             { width: 70, alignment: "center", text: `Page ${page} / ${pages}`, bold: true, color: NAVY },
-            { width: "*", alignment: "right", text: `Généré par ${d.generePar}` },
+            { width: "*", alignment: "right", text: `Généré par ${e.generePar}` },
           ],
         },
       ],
     }),
-    content: [
+    content,
+  };
+  return pdfmake.createPdf(doc).getBuffer();
+}
+
+/** Rapport financier : synthèse par devise, sorties par catégorie, détail, signatures. */
+export async function rapportFinancierPdf(d: RapportData): Promise<Buffer> {
+  if (!d.adresse?.trim()) throw new RapportError("L'adresse de la fondation n'est pas renseignée : complétez-la dans Administration → Paramètres avant de générer un rapport.");
+  const valides = d.lignes.filter((l) => !l.annuleLe);
+  const entrees = valides.filter((l) => l.sens === 1), sorties = valides.filter((l) => l.sens === -1);
+  const E = sommeParDevise(entrees), S = sommeParDevise(sorties);
+  const annulees = d.lignes.length - valides.length;
+  const parCategorie = (dev: DeviseKey) => {
+    const m = new Map<string, number>();
+    for (const l of sorties.filter((x) => x.devise === dev)) m.set(l.categorie ?? l.type, (m.get(l.categorie ?? l.type) ?? 0) + Number(l.montant.toString()));
+    return [...m].map(([label, v]) => ({ label, v: Math.round(v * 100) / 100 })).sort((a, b) => b.v - a.v);
+  };
+  const solde = { USD: E.USD - S.USD, CDF: E.CDF - S.CDF };
+
+  return documentPdf({ titre: d.titre, periode: d.periode, generePar: d.generePar, adresse: d.adresse }, [
       ...(d.filtres ? [{ text: `Filtres : ${d.filtres}`, style: "petit", margin: [0, 0, 0, 6] } as Content] : []),
       { text: "Synthèse", style: "h2" },
       {
@@ -183,7 +191,29 @@ export async function rapportFinancierPdf(d: RapportData): Promise<Buffer> {
           ],
         })),
       },
-    ],
-  };
-  return pdfmake.createPdf(doc).getBuffer();
+  ]);
+}
+
+export type LigneMembre = {
+  numero: string; nomComplet: string; sexe: string; telephone: string; categorie: string;
+  commune: string; quartier: string; profession: string; adhesion: Date; statut: string;
+};
+
+/** Liste des membres (A4 paysage) : mêmes en-tête, filigrane et pied de page que les rapports. */
+export function listeMembresPdf(d: { filtres: string; generePar: string; adresse: string; membres: LigneMembre[] }): Promise<Buffer> {
+  const entetes = ["N°", "Nom complet", "Sexe", "Téléphone", "Catégorie", "Commune", "Quartier", "Profession", "Adhésion", "Statut"];
+  return documentPdf({ titre: "Liste des membres", periode: `${d.filtres} — ${d.membres.length} membre(s)`, generePar: d.generePar, adresse: d.adresse, paysage: true }, [
+    { text: "Document confidentiel : données personnelles des membres.", style: "petit", margin: [0, 0, 0, 6] },
+    {
+      table: {
+        headerRows: 1, widths: [58, "*", 26, 74, 52, 62, 70, 80, 50, 50],
+        body: [
+          entetes.map((t) => ({ text: t, style: "th" })),
+          ...d.membres.map((m) => [{ text: m.numero, bold: true, noWrap: true }, m.nomComplet, m.sexe, { text: m.telephone, noWrap: true }, m.categorie, m.commune, m.quartier, m.profession, dateFr(m.adhesion), m.statut]),
+        ],
+      },
+      layout: { hLineWidth: (i: number) => (i <= 1 ? 1 : 0.4), vLineWidth: () => 0, hLineColor: (i: number) => (i <= 1 ? NAVY : "#c8cad6"), fillColor: (i: number) => (i > 0 && i % 2 === 0 ? "#f1f2f8" : null), paddingTop: () => 3, paddingBottom: () => 3 },
+      fontSize: 8,
+    } as Content,
+  ]);
 }

@@ -26,7 +26,7 @@ export async function GET(req: Request) {
   const nom = `rapport-financier-${f.du.toISOString().slice(0, 10)}-${f.au.toISOString().slice(0, 10)}`;
   const entetes = (type: string, fichier: string) => ({
     "Content-Type": type,
-    "Content-Disposition": `${excel ? "attachment" : "inline"}; filename="${fichier}"`,
+    "Content-Disposition": `attachment; filename="${fichier}"`,
     "Cache-Control": "private, no-store",
   });
 

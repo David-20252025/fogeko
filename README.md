@@ -99,7 +99,7 @@ prisma/migrations/          Historique des modifications de la base (à committe
 prisma/seed.ts              Données initiales (idempotent : ne touche pas à ce qui a été modifié dans l'admin)
 src/app/(site)/             Pages publiques
 src/app/gestion/            Espace de gestion (connexion, tableau de bord, membres, contenus…)
-src/app/gestion/impression/ Export PDF (liste) et cartes de membre à imprimer
+src/app/gestion/impression/ Cartes de membre à imprimer (la liste PDF est générée par membres/export?format=pdf)
 src/components/             Composants (en-tête, pied de page, formulaire d'adhésion, admin/…)
 src/lib/                    Logique : auth, base, validation, stockage des photos, filtres
 public/img/                 Logo et photos du site (WebP)
@@ -167,7 +167,7 @@ aucun membre ni article fictif n'est créé.
 ## 7. Choix et limites connus
 
 - La catégorie d'actualités **Politique** existe mais est masquée : ses articles ne s'affichent pas tant qu'elle n'est pas rendue visible.
-- L'export PDF passe par l'impression du navigateur (« Enregistrer au format PDF »), y compris sur Android.
+- La liste des membres et les rapports financiers se téléchargent directement en PDF ; seules les cartes de membre passent par la fenêtre d'impression (format exact CR80).
 - Les formulaires nécessitent JavaScript.
 - Les boutons rouges utilisent `#D01D37` (au lieu du rouge du logo `#EC2A45`) pour que le texte blanc reste lisible (contraste ≥ 4,5:1).
   Pour revenir au rouge exact : remplacer `bg-rouge-600` par `bg-rouge` dans `src/`.
