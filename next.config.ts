@@ -18,6 +18,7 @@ const CSP = [
 
 const nextConfig: NextConfig = {
   output: "standalone", // image Docker légère pour Dokploy
+  poweredByHeader: false, // ne pas annoncer la technologie du serveur (X-Powered-By)
   // Les photos des membres et les sources ne doivent jamais être copiées dans le build
   outputFileTracingExcludes: { "*": ["uploads/**", "src/**", ".pgdata/**", "apercus/**"] },
   // Polices du rapport PDF, lues sur le disque par pdfmake (non détectées automatiquement)
