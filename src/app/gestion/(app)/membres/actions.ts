@@ -48,6 +48,16 @@ export async function updateMember(id: string, _: FormState, f: FormData): Promi
   return { ok: true };
 }
 
+/** Validation groupée : les candidatures « En attente » cochées passent à « Actif » (les autres statuts ne bougent pas). */
+export async function validerSelection(f: FormData) {
+  const me = await assertPerm("MEMBRES", "modifier");
+  const ids = f.getAll("id").map(String).slice(0, 500);
+  if (!ids.length) return;
+  const r = await db.member.updateMany({ where: { id: { in: ids }, statut: "EN_ATTENTE" }, data: { statut: "ACTIF" } });
+  await audit(me.id, "membre.validation", "Member", undefined, { nombre: r.count });
+  revalidatePath("/gestion", "layout");
+}
+
 export async function setStatut(id: string, statut: StatutKey) {
   await assertPerm("MEMBRES", "modifier");
   if (!(statut in STATUTS)) throw new Error("Statut invalide");

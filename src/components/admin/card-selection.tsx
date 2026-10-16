@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { validerSelection } from "@/app/gestion/(app)/membres/actions";
 
 // form.elements inclut les champs associés via l'attribut form, contrairement à querySelectorAll
 const boxes = (formId: string) =>
@@ -8,8 +9,8 @@ const boxes = (formId: string) =>
     (e): e is HTMLInputElement => e instanceof HTMLInputElement && e.name === "id",
   );
 
-// Barre d'actions de la sélection : compte les cases cochées du formulaire et envoie vers l'impression des cartes
-export function CardSelection({ formId }: { formId: string }) {
+// Barre d'actions de la sélection : compte les cases cochées, télécharge les cartes ou valide les candidatures
+export function CardSelection({ formId, cartes, valider }: { formId: string; cartes: boolean; valider: boolean }) {
   const [count, setCount] = useState(0);
   const [total, setTotal] = useState(0);
 
@@ -34,12 +35,19 @@ export function CardSelection({ formId }: { formId: string }) {
       </label>
       <span className="text-ink/70">{count} sélectionné{count > 1 ? "s" : ""}</span>
       <div className="ml-auto flex flex-wrap gap-2">
+        {valider && (
+          <button form={formId} formAction={validerSelection} disabled={!count} className="rounded-full bg-emerald-700 px-4 py-2 font-semibold text-white hover:bg-emerald-800 disabled:opacity-40">
+            Valider la sélection
+          </button>
+        )}
+        {cartes && <>
         <button form={formId} name="format" value="a4" disabled={!count} className="rounded-full border-2 border-navy px-4 py-2 font-semibold text-navy hover:bg-navy hover:text-white disabled:opacity-40">
-          Cartes · planche A4
+          Cartes PDF · planche A4
         </button>
         <button form={formId} name="format" value="cr80" disabled={!count} className="rounded-full bg-navy px-4 py-2 font-semibold text-white hover:bg-navy-700 disabled:opacity-40">
-          Cartes · format CR80
+          Cartes PDF · format CR80
         </button>
+        </>}
       </div>
     </div>
   );

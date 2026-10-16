@@ -47,7 +47,7 @@ export default async function MemberPage(props: PageProps<"/gestion/membres/[id]
               <form action={setStatut.bind(null, m.id, quick.s)}>
                 <button className={`w-full rounded-full px-5 py-3 font-semibold ${quick.c}`}>{quick.l}</button>
               </form>
-              <Link href={`/gestion/impression/cartes?id=${m.id}`} target="_blank" className="rounded-full border-2 border-navy px-5 py-3 font-semibold text-navy hover:bg-navy hover:text-white">Imprimer la carte</Link>
+              <a href={`/gestion/impression/cartes?id=${m.id}&format=cr80`} download className="rounded-full border-2 border-navy px-5 py-3 font-semibold text-navy hover:bg-navy hover:text-white">Télécharger la carte (PDF)</a>
               <a href={`https://wa.me/${m.telephone.replace(/\D/g, "")}`} target="_blank" rel="noopener" className="rounded-full bg-[#25D366] px-5 py-3 font-semibold text-white">Écrire sur WhatsApp</a>
             </div>
           )}

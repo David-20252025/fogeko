@@ -99,7 +99,7 @@ prisma/migrations/          Historique des modifications de la base (à committe
 prisma/seed.ts              Données initiales (idempotent : ne touche pas à ce qui a été modifié dans l'admin)
 src/app/(site)/             Pages publiques
 src/app/gestion/            Espace de gestion (connexion, tableau de bord, membres, contenus…)
-src/app/gestion/impression/ Cartes de membre à imprimer (la liste PDF est générée par membres/export?format=pdf)
+src/app/gestion/impression/ Cartes de membre en PDF (la liste PDF est générée par membres/export?format=pdf)
 src/components/             Composants (en-tête, pied de page, formulaire d'adhésion, admin/…)
 src/lib/                    Logique : auth, base, validation, stockage des photos, filtres
 public/img/                 Logo et photos du site (WebP)
@@ -120,9 +120,12 @@ Chacun change son mot de passe dans **Mon profil**.
 
 ### Cartes de membre
 
-Dans **Membres**, cochez les membres puis « Cartes · format CR80 » (une carte par page, 85,6 × 54 mm, pour imprimante
-à cartes ou PDF) ou « Cartes · planche A4 » (10 cartes à découper). Pour un PDF : fenêtre d'impression →
-« Enregistrer au format PDF », marges **Aucune**, échelle **100 %**.
+Dans **Membres**, cochez les membres puis « Cartes PDF · format CR80 » (une carte par page, 85,6 × 54 mm, pour imprimante
+à cartes) ou « Cartes PDF · planche A4 » (10 cartes à découper). Le PDF se télécharge directement ; à l'impression,
+choisir l'échelle **100 %** (taille réelle). Depuis la fiche d'un membre : « Télécharger la carte (PDF) ».
+
+**Valider plusieurs candidatures** : dans **Membres**, filtrer « En attente », cocher les candidatures puis
+« Valider la sélection » (droit « modifier » sur Membres). Seules les candidatures en attente passent à « Actif ».
 
 ### Finances
 
@@ -167,7 +170,7 @@ aucun membre ni article fictif n'est créé.
 ## 7. Choix et limites connus
 
 - La catégorie d'actualités **Politique** existe mais est masquée : ses articles ne s'affichent pas tant qu'elle n'est pas rendue visible.
-- La liste des membres et les rapports financiers se téléchargent directement en PDF ; seules les cartes de membre passent par la fenêtre d'impression (format exact CR80).
+- Tous les PDF (liste des membres, cartes de membre, rapports financiers) sont générés par le serveur et téléchargés directement.
 - Les formulaires nécessitent JavaScript.
 - Les boutons rouges utilisent `#D01D37` (au lieu du rouge du logo `#EC2A45`) pour que le texte blanc reste lisible (contraste ≥ 4,5:1).
   Pour revenir au rouge exact : remplacer `bg-rouge-600` par `bg-rouge` dans `src/`.

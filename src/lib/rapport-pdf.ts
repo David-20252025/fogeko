@@ -217,3 +217,67 @@ export function listeMembresPdf(d: { filtres: string; generePar: string; adresse
     } as Content,
   ]);
 }
+
+export type CarteMembre = {
+  nomComplet: string; numero: string; categorie: string; commune: string; telephone: string; depuis: string;
+  qr: string; photo: string | null; initiales: string; // photo : image JPEG déjà recadrée (data URL), null si absente
+};
+
+const MM = 72 / 25.4;
+const CW = 85.6 * MM, CH = 54 * MM; // format carte bancaire ISO/CR80
+const OCRE = "#c9892b"; // --color-ocre du site
+const boite = (x: number, y: number, w: number, contenu: Content): Content =>
+  ({ absolutePosition: { x, y }, table: { widths: [w], body: [[contenu]] }, layout: { defaultBorder: false, paddingLeft: () => 0, paddingRight: () => 0, paddingTop: () => 0, paddingBottom: () => 0 } }) as Content;
+
+// Bande décorative inspirée des motifs kuba (même dessin que .kuba du site), répétée sur la largeur de la carte
+const tuile = `<path d='M0 7 7 0l7 7-7 7z' fill='${NAVY}'/><path d='M7 4l3 3-3 3-3-3z' fill='${ROUGE}'/><path d='M16 0h10v4h-6v6h6v4H16z' fill='${NAVY}'/><path d='M30 0h10v10h-6V4h-4zM30 14v-4h4v4z' fill='${NAVY}'/><rect x='44' y='0' width='4' height='14' fill='${ROUGE}'/><rect x='50' y='5' width='4' height='4' fill='${NAVY}'/>`;
+const kuba = `<svg xmlns='http://www.w3.org/2000/svg' width='952' height='14' viewBox='0 0 952 14'><rect width='952' height='14' fill='${OCRE}'/>${Array.from({ length: 17 }, (_, i) => `<g transform='translate(${i * 56} 0)'>${tuile}</g>`).join("")}</svg>`;
+
+function carte(c: CarteMembre, x: number, y: number, bordure: boolean): Content[] {
+  const corpsY = y + 12.3 * MM, corpsH = CH - 12.3 * MM - 4 * MM;
+  const photoY = corpsY + (corpsH - 22 * MM) / 2;
+  const qrY = corpsY + (corpsH - 18 * MM) / 2;
+  const texteX = x + 27.5 * MM, texteW = CW - 27.5 * MM - 3 * MM - 15 * MM - 2.5 * MM;
+  const info = (l: string, v: string) => [{ text: l, color: GRIS }, { text: v, bold: true }];
+  return [
+    ...(bordure ? [{ absolutePosition: { x, y }, canvas: [{ type: "rect", x: 0, y: 0, w: CW, h: CH, r: 3 * MM, lineColor: "#c3c6d8", lineWidth: 0.5 }] } as Content] : []),
+    { image: "logo", height: 9.5 * MM, width: (9.5 * 600) / 464 * MM, absolutePosition: { x: x + 3 * MM, y: y + 0.75 * MM } },
+    boite(x + 3 * MM, y + 2.4 * MM, CW - 6 * MM, { alignment: "right", stack: [{ text: "Fondation Gekoko", bold: true, fontSize: 8, color: NAVY }, { text: "CARTE DE MEMBRE", bold: true, fontSize: 5.8, color: ROUGE, characterSpacing: 1 }] }),
+    { svg: kuba, width: CW, height: 1.3 * MM, absolutePosition: { x, y: y + 11 * MM } },
+    c.photo
+      ? { image: c.photo, width: 22 * MM, height: 22 * MM, absolutePosition: { x: x + 3 * MM, y: photoY } }
+      : { absolutePosition: { x: x + 3 * MM, y: photoY }, canvas: [{ type: "rect", x: 0, y: 0, w: 22 * MM, h: 22 * MM, r: 2 * MM, color: "#eef0f7" }] },
+    ...(c.photo ? [] : [boite(x + 3 * MM, photoY + 8.5 * MM, 22 * MM, { text: c.initiales, alignment: "center", bold: true, fontSize: 14, color: NAVY })]),
+    { absolutePosition: { x: x + 3 * MM, y: photoY }, canvas: [{ type: "rect", x: 0, y: 0, w: 22 * MM, h: 22 * MM, r: 2 * MM, lineColor: OCRE, lineWidth: 1.7 }] },
+    boite(texteX, corpsY + 1.5 * MM, texteW, {
+      stack: [
+        { text: c.nomComplet, bold: true, fontSize: 8.5, color: NAVY, lineHeight: 1 },
+        { text: c.numero, bold: true, fontSize: 8.5, color: ROUGE, margin: [0, 2, 0, 2] },
+        { table: { widths: ["auto", "*"], body: [info("Catégorie", c.categorie), info("Commune", c.commune), info("Tél.", c.telephone), info("Depuis", c.depuis)] }, layout: { defaultBorder: false, paddingLeft: () => 0, paddingRight: () => 3, paddingTop: () => 0.4, paddingBottom: () => 0.4 }, fontSize: 6 },
+      ],
+    }),
+    { qr: c.qr, fit: 15 * MM, foreground: NAVY, absolutePosition: { x: x + CW - 18 * MM, y: qrY } } as Content,
+    boite(x + CW - 18 * MM, qrY + 15.6 * MM, 15 * MM, { text: "Vérification", fontSize: 4.5, color: GRIS, alignment: "center" }),
+    { absolutePosition: { x, y: y + CH - 4 * MM }, canvas: [{ type: "rect", x: 0, y: 0, w: CW, h: 4 * MM, color: NAVY }] },
+    boite(x + 3 * MM, y + CH - 2.9 * MM, CW - 6 * MM, { columns: [{ text: "Kinshasa · République démocratique du Congo" }, { text: "fogeko.com", alignment: "right" }], fontSize: 5, color: "#ffffff" }),
+  ];
+}
+
+/** Cartes de membre en PDF : cr80 = une carte par page au format exact, a4 = planche de 10 cartes à découper. */
+export function cartesPdf(cartes: CarteMembre[], format: "cr80" | "a4"): Promise<Buffer> {
+  init();
+  const parPage = format === "a4" ? 10 : 1;
+  const content: Content[] = [];
+  cartes.forEach((c, i) => {
+    if (i > 0 && i % parPage === 0) content.push({ text: "", pageBreak: "before" });
+    const k = i % parPage;
+    const [x, y] = format === "a4" ? [10 * MM + (k % 2) * (CW + 5 * MM), 7 * MM + Math.floor(k / 2) * (CH + 3 * MM)] : [0, 0];
+    content.push(...carte(c, x, y, format === "a4"));
+  });
+  if (!cartes.length) content.push({ text: "Aucun membre sélectionné.", margin: [20, 20] });
+  return pdfmake.createPdf({
+    pageSize: format === "a4" ? "A4" : { width: CW, height: CH }, pageMargins: [0, 0, 0, 0],
+    images: { logo: logo() }, info: { title: "Cartes de membre FOGEKO", author: "Fondation Gekoko (FOGEKO)", creator: "FOGEKO" },
+    defaultStyle: { font: "Roboto", fontSize: 8, color: "#14173A" }, content,
+  }).getBuffer();
+}

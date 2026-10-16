@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
-import { listeMembresPdf, rapportFinancierPdf, RapportError, type LigneRapport } from "../src/lib/rapport-pdf";
+import { cartesPdf, listeMembresPdf, rapportFinancierPdf, RapportError, type LigneRapport } from "../src/lib/rapport-pdf";
 
 const d = (s: string) => new Date(`${s}T12:00:00Z`);
 // Données fictives : assez de lignes pour plusieurs pages
@@ -64,4 +64,21 @@ test("liste des membres PDF : A4 paysage, en-tête et pied de page sur chaque pa
   const tout = pages.join(" ");
   assert.match(tout, /70 membre\(s\)/);
   assert.match(tout, /FOGEKO-0001/); assert.match(tout, /FOGEKO-0070/);
+});
+
+test("cartes de membre PDF : CR80 une par page au format exact, planche A4 de 10 cartes", async () => {
+  const cartes = Array.from({ length: 12 }, (_, i) => ({
+    nomComplet: `Grâce Membre Fictif ${i + 1}`, numero: `FOGEKO-${String(i + 1).padStart(4, "0")}`, categorie: "Mamans", commune: "Limete · Kingabwa",
+    telephone: "+243890000000", depuis: "octobre 2026", qr: "https://fogeko.com/gestion/membres/x", photo: null, initiales: "GM",
+  }));
+  const cr80 = await getDocument({ data: new Uint8Array(await cartesPdf(cartes, "cr80")) }).promise;
+  assert.equal(cr80.numPages, 12, "une carte par page");
+  const [, , w, h] = (await cr80.getPage(1)).view;
+  assert.ok(Math.abs(w - 242.65) < 0.5 && Math.abs(h - 153.07) < 0.5, `85,6 × 54 mm (${w} × ${h} pt)`);
+  const a4 = await cartesPdf(cartes, "a4");
+  const pages = await texte(a4);
+  assert.equal(pages.length, 2, "10 cartes par planche");
+  // (l'espacement des lettres de « CARTE DE MEMBRE » et les accents découpent le texte extrait : on vérifie les numéros)
+  assert.match(pages[0], /FOGEKO-0001/); assert.match(pages[0], /FOGEKO-0010/); assert.doesNotMatch(pages[0], /FOGEKO-0011/);
+  assert.match(pages[1], /FOGEKO-0011/); assert.match(pages[1], /FOGEKO-0012/); assert.match(pages[1], /Fondation Gekoko/);
 });

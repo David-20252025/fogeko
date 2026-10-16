@@ -25,6 +25,8 @@ export default async function MembersPage(props: PageProps<"/gestion/membres">) 
   const qs = filtersToQuery(f);
   const pageHref = (p: number) => `/gestion/membres?${new URLSearchParams([...new URLSearchParams(qs), ["page", String(p)]])}`;
   const filtered = qs.length > 0;
+  // Cases de sélection : pour télécharger des cartes ou valider plusieurs candidatures
+  const selection = user.perms.MEMBRES.exporter || user.perms.MEMBRES.modifier;
 
   return (
     <div className="space-y-4">
@@ -36,7 +38,7 @@ export default async function MembersPage(props: PageProps<"/gestion/membres">) 
         {user.perms.MEMBRES.exporter && (
           <div className="flex flex-wrap gap-2">
             <a href={`/gestion/membres/export?${qs}`} className="rounded-full bg-navy px-5 py-2.5 font-semibold text-white hover:bg-navy-700">Export Excel</a>
-            <Link href={`/gestion/impression/cartes?${qs}`} target="_blank" className="rounded-full border-2 border-navy/15 px-5 py-2.5 font-semibold text-navy hover:border-navy">Cartes (tous les résultats)</Link>
+            <a href={`/gestion/impression/cartes?${qs}`} download className="rounded-full border-2 border-navy/15 px-5 py-2.5 font-semibold text-navy hover:border-navy">Cartes PDF (tous les résultats)</a>
             <a href={`/gestion/membres/export?${qs}${qs ? "&" : ""}format=pdf`} download className="rounded-full border-2 border-navy px-5 py-2.5 font-semibold text-navy hover:bg-navy hover:text-white">Export PDF</a>
           </div>
         )}
@@ -63,9 +65,9 @@ export default async function MembersPage(props: PageProps<"/gestion/membres">) 
         </div>
       </form>
 
-      {user.perms.MEMBRES.exporter && members.length > 0 && <CardSelection formId="selection-cartes" />}
+      {selection && members.length > 0 && <CardSelection formId="selection-cartes" cartes={user.perms.MEMBRES.exporter} valider={user.perms.MEMBRES.modifier} />}
       {/* Formulaire de sélection : les cases des lignes y sont rattachées via form="…" */}
-      <form id="selection-cartes" action="/gestion/impression/cartes" target="_blank" />
+      <form id="selection-cartes" action="/gestion/impression/cartes" />
 
       <div className="overflow-hidden rounded-3xl bg-white">
         {members.length === 0 ? (
@@ -86,7 +88,7 @@ export default async function MembersPage(props: PageProps<"/gestion/membres">) 
               {members.map((m) => (
                 <tr key={m.id} className="relative block hover:bg-mist/60 md:table-row">
                   <td className="flex items-center gap-3 px-5 pt-4 md:table-cell md:py-3">
-                    {user.perms.MEMBRES.exporter && (
+                    {selection && (
                       <input type="checkbox" name="id" value={m.id} form="selection-cartes" aria-label={`Sélectionner ${m.prenom} ${m.nom}`} className="relative z-10 mr-3 size-5 shrink-0 accent-navy md:align-middle" />
                     )}
                     <Link href={`/gestion/membres/${m.id}`} className="inline-flex items-center gap-3 align-middle after:absolute after:inset-0">
